@@ -1340,6 +1340,28 @@
 
                     const syncedToCloud = await saveEvaluationRecord(recordToSave);
 
+                    // 若已登入，同步將公德點數 (+1) 與總回報次數 (+1) 更新至 Firebase 後台 user_profiles 集合
+                    if (db && userId) {
+                        try {
+                            const userProfRef = db.collection('user_profiles').doc(userId);
+                            const profSnap = await userProfRef.get();
+                            if (profSnap.exists && typeof profSnap.data()?.meritPoints === 'number') {
+                                const pData = profSnap.data();
+                                await userProfRef.set({
+                                    userId,
+                                    displayName: nickname,
+                                    email: (currentUser && currentUser.email) ? currentUser.email : '',
+                                    meritPoints: Math.max(0, (Number(pData.meritPoints) || 0) + 1),
+                                    totalReports: Math.max(0, (Number(pData.totalReports) || 0) + 1),
+                                    _rawEvalCount: (Number(pData._rawEvalCount) || 0) + 1,
+                                    updatedAt: new Date().toISOString()
+                                }, { merge: true });
+                            }
+                        } catch (e) {
+                            console.warn('Update user_profiles counts warning:', e);
+                        }
+                    }
+
                     // 記錄此公廁已完成評鑑的時間戳記，啟動 5 分鐘冷卻限制
                     setToiletCooldownTimestamp(toilet);
 

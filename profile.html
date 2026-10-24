@@ -136,9 +136,17 @@
                 <div class="relative w-full flex items-center">
                     <!-- Yellow Merit Points Box (No shadow) -->
                     <div class="poogle-card w-full sm:w-[460px] min-h-[162px] sm:min-h-[176px] rounded-[24px] bg-[#FFF57E] px-7 sm:px-10 py-6 flex flex-col justify-center relative overflow-hidden">
-                        <div class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white border-[1.5px] border-[#1E2270] text-[11px] font-bold text-[#1E2270] w-fit mb-2.5">
-                            <i class="fa-solid fa-wand-magic-sparkles text-[#FF85D0]"></i>
-                            <span>每評鑑 1 間公廁自動 +1 點</span>
+                        <div class="flex flex-wrap items-center gap-2 mb-2.5">
+                            <div class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white border-[1.5px] border-[#1E2270] text-[11px] font-bold text-[#1E2270] w-fit">
+                                <i class="fa-solid fa-wand-magic-sparkles text-[#FF85D0]"></i>
+                                <span>每評鑑 1 間公廁自動 +1 點</span>
+                            </div>
+                            <button id="openTestAdminModalBtn" type="button"
+                                    class="poogle-pill-btn inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FF85D0]/45 hover:bg-[#FF85D0] text-[11px] font-bold text-[#1E2270] focus:outline-none"
+                                    title="測試階段快速歸零或調整點數與回報次數">
+                                <i class="fa-solid fa-sliders"></i>
+                                <span>測試歸零/調整</span>
+                            </button>
                         </div>
                         <div class="text-2xl sm:text-[32px] font-extrabold text-black tracking-wide leading-tight flex items-baseline gap-2">
                             <span>公德點數 :</span>
@@ -338,6 +346,59 @@
                 <button id="confirmRedeemBtn" type="button"
                         class="poogle-pill-btn flex-1 py-2.5 bg-[#3CE6B0] hover:bg-[#2fd49f] text-black font-extrabold text-xs sm:text-sm">
                     確認兌換
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- MODAL: TEST STAGE RESET / ADJUST POINTS & REPORTS                   -->
+    <!-- =================================================================== -->
+    <div id="testAdminModal" class="hidden fixed inset-0 z-50 bg-black/45 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#FCF6E8] rounded-[28px] max-w-md w-full border-2 border-[#1E2270] p-6 sm:p-7 relative space-y-4">
+            <button id="closeTestAdminModalBtn" type="button"
+                    class="poogle-pill-btn absolute top-5 right-5 w-8 h-8 rounded-full bg-white text-black flex items-center justify-center focus:outline-none">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-full bg-[#FF85D0] border-2 border-[#1E2270] flex items-center justify-center text-[#1E2270] text-base shrink-0">
+                    <i class="fa-solid fa-screwdriver-wrench"></i>
+                </div>
+                <div>
+                    <h3 class="text-base sm:text-lg font-extrabold text-black">測試用：點數與回報數後台同步控制</h3>
+                    <p class="text-[11px] text-neutral-600">此處修改會直接同步寫入 Firebase 的 <code>user_profiles</code> 集合</p>
+                </div>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-white border-[1.5px] border-[#1E2270] space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                    <label for="testInputMeritPoints" class="text-xs sm:text-sm font-extrabold text-black">設定公德點數：</label>
+                    <input id="testInputMeritPoints" type="number" min="0" max="9999" value="0"
+                           class="w-28 px-3 py-1.5 rounded-xl bg-[#FCF6E8] border-[1.5px] border-[#1E2270] text-sm font-black text-center focus:outline-none" />
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <label for="testInputTotalReports" class="text-xs sm:text-sm font-extrabold text-black">設定總回報次數：</label>
+                    <input id="testInputTotalReports" type="number" min="0" max="9999" value="0"
+                           class="w-28 px-3 py-1.5 rounded-xl bg-[#FCF6E8] border-[1.5px] border-[#1E2270] text-sm font-black text-center focus:outline-none" />
+                </div>
+                <div class="pt-1 flex items-center gap-2">
+                    <button id="applyCustomCountsBtn" type="button"
+                            class="poogle-pill-btn w-full py-2 bg-[#72D0FF] hover:bg-[#5bc6ff] text-black font-extrabold text-xs sm:text-sm">
+                        套用自訂數值（同步至後台）
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-[#FFF57E]/65 border-[1.5px] border-[#1E2270] space-y-2.5">
+                <div class="text-xs font-extrabold text-[#1E2270]">快速歸零選項（測試常用）</div>
+                <button id="quickZeroCountsOnlyBtn" type="button"
+                        class="poogle-pill-btn w-full py-2 bg-white hover:bg-neutral-100 text-black font-extrabold text-xs sm:text-sm">
+                    <i class="fa-solid fa-rotate-left mr-1"></i>將「公德點數」與「總回報次數」歸 0
+                </button>
+                <button id="quickZeroAndDeleteHistoryBtn" type="button"
+                        class="poogle-pill-btn w-full py-2 bg-[#FF85D0] hover:bg-[#ff6ec7] text-black font-extrabold text-xs sm:text-sm">
+                    <i class="fa-solid fa-trash-can mr-1"></i>完整歸 0（同時清空此帳號的歷史紀錄與測試評論）
                 </button>
             </div>
         </div>
@@ -545,9 +606,14 @@
             pendingRedirectHome: false,
             evaluations: [],
             redemptions: [],
+            profileDoc: null,
+            evalLoaded: false,
+            redeemLoaded: false,
+            profileLoaded: false,
             currentPoints: 0,
             totalReports: 0,
             pendingRedeemItem: null,
+            profileUnsubscribe: null,
             evalUnsubscribe: null,
             redeemUnsubscribe: null
         };
@@ -813,14 +879,76 @@
             });
         }
 
-        function recalculateAndRenderPointsAndHistory() {
-            const totalReports = profileState.evaluations.length;
-            const totalEarnedPoints = totalReports;
-            const totalSpentPoints = profileState.redemptions.reduce((sum, r) => sum + (Number(r.pointsUsed) || 0), 0);
-            const currentPoints = Math.max(0, totalEarnedPoints - totalSpentPoints);
+        function reconcileAndSyncProfileCounts() {
+            const rawEvalCount = profileState.evaluations.length;
+            const rawSpentPoints = profileState.redemptions.reduce((sum, r) => sum + (Number(r.pointsUsed) || 0), 0);
+            const rawNetPoints = Math.max(0, rawEvalCount - rawSpentPoints);
 
-            profileState.totalReports = totalReports;
-            profileState.currentPoints = currentPoints;
+            const docData = profileState.profileDoc;
+            let finalPoints = rawNetPoints;
+            let finalReports = rawEvalCount;
+
+            if (profileState.evalLoaded && profileState.redeemLoaded && profileState.profileLoaded) {
+                const hasBackendNumbers = docData
+                    && typeof docData.meritPoints === 'number'
+                    && typeof docData.totalReports === 'number';
+
+                if (!hasBackendNumbers) {
+                    finalPoints = rawNetPoints;
+                    finalReports = rawEvalCount;
+                    if (db && profileState.uid) {
+                        db.collection('user_profiles').doc(profileState.uid).set({
+                            userId: profileState.uid,
+                            displayName: profileState.displayName || 'Google 用戶',
+                            email: profileState.email || '',
+                            avatarType: profileState.avatarType || 'red_toilet',
+                            meritPoints: finalPoints,
+                            totalReports: finalReports,
+                            _rawEvalCount: rawEvalCount,
+                            _rawSpentPoints: rawSpentPoints,
+                            updatedAt: new Date().toISOString()
+                        }, { merge: true }).catch(() => {});
+                    }
+                } else {
+                    const savedRawEval = typeof docData._rawEvalCount === 'number' ? docData._rawEvalCount : rawEvalCount;
+                    const savedRawSpent = typeof docData._rawSpentPoints === 'number' ? docData._rawSpentPoints : rawSpentPoints;
+                    const deltaEval = rawEvalCount - savedRawEval;
+                    const deltaSpent = rawSpentPoints - savedRawSpent;
+
+                    if (deltaEval !== 0 || deltaSpent !== 0) {
+                        finalReports = Math.max(0, Number(docData.totalReports) + deltaEval);
+                        finalPoints = Math.max(0, Number(docData.meritPoints) + deltaEval - deltaSpent);
+                        if (db && profileState.uid) {
+                            db.collection('user_profiles').doc(profileState.uid).set({
+                                userId: profileState.uid,
+                                displayName: profileState.displayName || 'Google 用戶',
+                                email: profileState.email || '',
+                                meritPoints: finalPoints,
+                                totalReports: finalReports,
+                                _rawEvalCount: rawEvalCount,
+                                _rawSpentPoints: rawSpentPoints,
+                                updatedAt: new Date().toISOString()
+                            }, { merge: true }).catch(() => {});
+                        }
+                    } else {
+                        finalPoints = Math.max(0, Number(docData.meritPoints) || 0);
+                        finalReports = Math.max(0, Number(docData.totalReports) || 0);
+                    }
+                }
+            } else if (docData && typeof docData.meritPoints === 'number' && typeof docData.totalReports === 'number') {
+                finalPoints = Math.max(0, Number(docData.meritPoints) || 0);
+                finalReports = Math.max(0, Number(docData.totalReports) || 0);
+            }
+
+            profileState.currentPoints = finalPoints;
+            profileState.totalReports = finalReports;
+        }
+
+        function recalculateAndRenderPointsAndHistory() {
+            reconcileAndSyncProfileCounts();
+
+            const currentPoints = profileState.currentPoints;
+            const totalReports = profileState.totalReports;
 
             document.getElementById('meritPointsCount').textContent = String(currentPoints);
             document.getElementById('totalReportsCount').textContent = String(totalReports);
@@ -830,7 +958,16 @@
             const historyContainer = document.getElementById('historyContentContainer');
             if (!historyContainer) return;
 
-            if (profileState.evaluations.length === 0 && profileState.redemptions.length === 0) {
+            const resetAtIso = profileState.profileDoc?.resetHistoryAt || null;
+            const visibleEvals = resetAtIso
+                ? profileState.evaluations.filter(ev => !ev.createdAt || ev.createdAt > resetAtIso)
+                : profileState.evaluations;
+            const visibleRedeems = resetAtIso
+                ? profileState.redemptions.filter(rd => !rd.createdAt || rd.createdAt > resetAtIso)
+                : profileState.redemptions;
+
+            if ((visibleEvals.length === 0 && visibleRedeems.length === 0 && currentPoints === 0 && totalReports === 0)
+                || (currentPoints === 0 && totalReports === 0 && profileState.profileDoc && typeof profileState.profileDoc.meritPoints === 'number')) {
                 historyContainer.innerHTML = `
                     <div class="w-full h-full flex items-center justify-center text-neutral-400 text-sm sm:text-base font-bold py-16">
                         目前沒有歷史紀錄
@@ -847,17 +984,42 @@
                 return dailyMap.get(dateKey);
             };
 
-            profileState.evaluations.forEach((ev) => {
+            visibleEvals.forEach((ev) => {
                 const dateKey = toLocalDateKey(ev.createdAt);
                 const dayRecord = ensureDay(dateKey);
                 dayRecord.added += 1;
             });
 
-            profileState.redemptions.forEach((rd) => {
+            visibleRedeems.forEach((rd) => {
                 const dateKey = toLocalDateKey(rd.createdAt);
                 const dayRecord = ensureDay(dateKey);
                 dayRecord.deducted += (Number(rd.pointsUsed) || 0);
             });
+
+            // 若後台有手動調整公德點數，將差額自動反映於當日紀錄，確保歷史紀錄總計與上方公德點數 100% 一致
+            const rawVisibleAdded = visibleEvals.length;
+            const rawVisibleDeducted = visibleRedeems.reduce((s, r) => s + (Number(r.pointsUsed) || 0), 0);
+            const rawVisibleNet = Math.max(0, rawVisibleAdded - rawVisibleDeducted);
+            const manualDiff = currentPoints - rawVisibleNet;
+
+            if (manualDiff !== 0) {
+                const todayKey = toLocalDateKey(new Date().toISOString());
+                const todayRecord = ensureDay(todayKey);
+                if (manualDiff > 0) {
+                    todayRecord.added += manualDiff;
+                } else {
+                    todayRecord.deducted += Math.abs(manualDiff);
+                }
+            }
+
+            if (dailyMap.size === 0) {
+                historyContainer.innerHTML = `
+                    <div class="w-full h-full flex items-center justify-center text-neutral-400 text-sm sm:text-base font-bold py-16">
+                        目前沒有歷史紀錄
+                    </div>
+                `;
+                return;
+            }
 
             const sortedAsc = Array.from(dailyMap.values()).sort((a, b) => a.dateKey.localeCompare(b.dateKey));
             let runningTotal = 0;
@@ -894,25 +1056,41 @@
         function subscribeUserCloudData(uid) {
             if (!db || !uid) return;
 
+            if (profileState.profileUnsubscribe) profileState.profileUnsubscribe();
             if (profileState.evalUnsubscribe) profileState.evalUnsubscribe();
             if (profileState.redeemUnsubscribe) profileState.redeemUnsubscribe();
 
-            // 讀取使用者雲端儲存的專屬頭貼設定
-            db.collection('user_profiles').doc(uid).get().then((doc) => {
-                if (doc.exists && doc.data()?.avatarType) {
-                    const cloudAvatar = doc.data().avatarType;
-                    profileState.avatarType = cloudAvatar;
-                    profileState.savedAvatarType = cloudAvatar;
-                    renderProfileAvatar();
-                    try {
-                        localStorage.setItem(`poogle_avatar_${uid}`, cloudAvatar);
-                    } catch (e) {}
-                }
-            }).catch(() => {});
+            profileState.evalLoaded = false;
+            profileState.redeemLoaded = false;
+            profileState.profileLoaded = false;
+
+            // 即時監聽 user_profiles/{uid}：支援從 Firebase 後台直接修改 meritPoints 與 totalReports 即時生效
+            profileState.profileUnsubscribe = db.collection('user_profiles').doc(uid)
+                .onSnapshot((doc) => {
+                    profileState.profileLoaded = true;
+                    if (doc.exists) {
+                        const data = doc.data() || {};
+                        profileState.profileDoc = data;
+                        if (data.avatarType && !profileState.isEditing) {
+                            profileState.avatarType = data.avatarType;
+                            profileState.savedAvatarType = data.avatarType;
+                            renderProfileAvatar();
+                            try {
+                                localStorage.setItem(`poogle_avatar_${uid}`, data.avatarType);
+                            } catch (e) {}
+                        }
+                    } else {
+                        profileState.profileDoc = null;
+                    }
+                    recalculateAndRenderPointsAndHistory();
+                }, (err) => {
+                    console.warn('User profile listener error:', err);
+                });
 
             profileState.evalUnsubscribe = db.collection('evaluations')
                 .where('userId', '==', uid)
                 .onSnapshot((snapshot) => {
+                    profileState.evalLoaded = true;
                     const evals = [];
                     snapshot.forEach((doc) => {
                         evals.push({ id: doc.id, ...doc.data() });
@@ -926,6 +1104,7 @@
             profileState.redeemUnsubscribe = db.collection('redemptions')
                 .where('userId', '==', uid)
                 .onSnapshot((snapshot) => {
+                    profileState.redeemLoaded = true;
                     const redeems = [];
                     snapshot.forEach((doc) => {
                         redeems.push({ id: doc.id, ...doc.data() });
@@ -1164,6 +1343,122 @@
                     confirmBtn.textContent = '確認兌換';
                     profileState.pendingRedeemItem = null;
                     redeemModal.classList.add('hidden');
+                }
+            });
+
+            // 測試階段：快速歸零與自訂點數/回報次數彈窗邏輯
+            const testAdminModal = document.getElementById('testAdminModal');
+            const inputMerit = document.getElementById('testInputMeritPoints');
+            const inputReports = document.getElementById('testInputTotalReports');
+
+            document.getElementById('openTestAdminModalBtn').addEventListener('click', () => {
+                inputMerit.value = profileState.currentPoints;
+                inputReports.value = profileState.totalReports;
+                testAdminModal.classList.remove('hidden');
+            });
+
+            document.getElementById('closeTestAdminModalBtn').addEventListener('click', () => {
+                testAdminModal.classList.add('hidden');
+            });
+
+            testAdminModal.addEventListener('click', (e) => {
+                if (e.target === testAdminModal) testAdminModal.classList.add('hidden');
+            });
+
+            async function updateBackendCounts(newPoints, newReports, resetHistory = false) {
+                const cleanPoints = Math.max(0, parseInt(newPoints, 10) || 0);
+                const cleanReports = Math.max(0, parseInt(newReports, 10) || 0);
+                const rawEvalCount = profileState.evaluations.length;
+                const rawSpentPoints = profileState.redemptions.reduce((sum, r) => sum + (Number(r.pointsUsed) || 0), 0);
+
+                const payload = {
+                    userId: profileState.uid || 'preview_demo_user',
+                    displayName: profileState.displayName || 'Google 用戶',
+                    email: profileState.email || '',
+                    avatarType: profileState.avatarType || 'red_toilet',
+                    meritPoints: cleanPoints,
+                    totalReports: cleanReports,
+                    _rawEvalCount: rawEvalCount,
+                    _rawSpentPoints: rawSpentPoints,
+                    updatedAt: new Date().toISOString()
+                };
+                if (resetHistory) {
+                    payload.resetHistoryAt = new Date().toISOString();
+                }
+
+                profileState.profileDoc = { ...(profileState.profileDoc || {}), ...payload };
+                recalculateAndRenderPointsAndHistory();
+
+                if (db && profileState.uid) {
+                    await db.collection('user_profiles').doc(profileState.uid).set(payload, { merge: true });
+                }
+            }
+
+            document.getElementById('applyCustomCountsBtn').addEventListener('click', async () => {
+                const btn = document.getElementById('applyCustomCountsBtn');
+                btn.disabled = true;
+                btn.textContent = '同步中...';
+                try {
+                    await updateBackendCounts(inputMerit.value, inputReports.value, false);
+                    testAdminModal.classList.add('hidden');
+                    showProfileToast(`✅ 已同步更新：公德點數 ${profileState.currentPoints} 點、總回報 ${profileState.totalReports} 次`, '#3CE6B0');
+                } catch (err) {
+                    showProfileToast('更新失敗，請稍後再試', '#FF85D0');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '套用自訂數值（同步至後台）';
+                }
+            });
+
+            document.getElementById('quickZeroCountsOnlyBtn').addEventListener('click', async () => {
+                const btn = document.getElementById('quickZeroCountsOnlyBtn');
+                btn.disabled = true;
+                try {
+                    await updateBackendCounts(0, 0, true);
+                    testAdminModal.classList.add('hidden');
+                    showProfileToast('✅ 已將公德點數與總回報次數歸 0！', '#3CE6B0');
+                } finally {
+                    btn.disabled = false;
+                }
+            });
+
+            document.getElementById('quickZeroAndDeleteHistoryBtn').addEventListener('click', async () => {
+                const btn = document.getElementById('quickZeroAndDeleteHistoryBtn');
+                btn.disabled = true;
+                btn.textContent = '清空雲端紀錄中...';
+                try {
+                    if (db && profileState.uid) {
+                        const evalSnap = await db.collection('evaluations').where('userId', '==', profileState.uid).get();
+                        const redeemSnap = await db.collection('redemptions').where('userId', '==', profileState.uid).get();
+                        const batch = db.batch();
+                        evalSnap.forEach((d) => batch.delete(d.ref));
+                        redeemSnap.forEach((d) => batch.delete(d.ref));
+                        await batch.commit();
+
+                        await db.collection('user_profiles').doc(profileState.uid).set({
+                            userId: profileState.uid,
+                            displayName: profileState.displayName || 'Google 用戶',
+                            email: profileState.email || '',
+                            meritPoints: 0,
+                            totalReports: 0,
+                            _rawEvalCount: 0,
+                            _rawSpentPoints: 0,
+                            resetHistoryAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString()
+                        }, { merge: true });
+                    } else {
+                        profileState.evaluations = [];
+                        profileState.redemptions = [];
+                        await updateBackendCounts(0, 0, true);
+                    }
+                    testAdminModal.classList.add('hidden');
+                    showProfileToast('🧹 已完整歸 0 並清空此帳號的所有測試評論與兌換紀錄！', '#3CE6B0');
+                } catch (err) {
+                    console.warn('Reset all error:', err);
+                    showProfileToast('清空失敗，請稍後再試', '#FF85D0');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '完整歸 0（同時清空此帳號的歷史紀錄與測試評論）';
                 }
             });
         });
