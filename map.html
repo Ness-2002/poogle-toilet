@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>有所味 Poogle｜全國公廁地圖查詢系統</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- Leaflet Map CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Firebase SDK (Compat Version for Realtime Database & Firestore) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --poogle-cream: #FCF6E8;
+            --poogle-yellow: #FFF57E;
+            --poogle-blue: #72D0FF;
+            --poogle-pink: #FF85D0;
+            --poogle-green: #3CE6B0;
+            --poogle-gray: #D6D6D6;
+            --poogle-ink: #18181B;
+        }
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: var(--poogle-cream);
+            color: var(--poogle-ink);
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+        }
+        ::-webkit-scrollbar {
+            width: 7px;
+            height: 7px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F5EBD6;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #72D0FF;
+            border: 1.5px solid #18181B;
+            border-radius: 9999px;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            background-color: #FFF57E;
+        }
+        .poogle-oval-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background-color: #D6D6D6;
+            border: 1.5px solid #18181B;
+            border-radius: 9999px;
+            text-align: center;
+            text-align-last: center;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+        .poogle-oval-select:hover, .poogle-oval-select:focus {
+            background-color: #FFF57E;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 0 #18181B;
+            outline: none;
+        }
+        .poogle-pill-btn {
+            border: 1.5px solid #18181B;
+            transition: all 0.16s ease;
+        }
+        .poogle-pill-btn:hover:not(:disabled) {
+            transform: translateY(-1.5px);
+            box-shadow: 0 3px 0 #18181B;
+        }
+        @keyframes pulseRing {
+            0% { transform: scale(0.8); opacity: 0.9; }
+            100% { transform: scale(2.2); opacity: 0; }
+        }
+        .gps-pulse-ring {
+            animation: pulseRing 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+        }
+    </style>
+</head>
+
+<body class="h-screen w-screen overflow-hidden bg-[#FCF6E8] select-none flex flex-col lg:flex-row">
+
+    <!-- LEFT PANEL: Search, Oval Filters & Real Toilet List -->
+    <section class="w-full lg:w-[48%] h-[54%] lg:h-full bg-[#FCF6E8] flex flex-col justify-between px-5 sm:px-8 pt-4 pb-3 overflow-hidden relative z-20 border-b-2 lg:border-b-0 lg:border-r-2 border-[#18181B]/15 order-2 lg:order-1">
+        
+        <!-- Top Bar: Logo (Links back to ./index.html) & CSV Status -->
+        <div class="flex items-center justify-between gap-2 shrink-0">
+            <a href="./index.html" class="group text-left focus:outline-none" title="回到主頁 (index.html)">
+                <img src="./img/logo.png" alt="有所味 Logo" class="w-36 sm:w-44 h-auto drop-shadow-sm group-hover:scale-105 transition-transform object-contain"
+                     onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 260 95%22><text x=%2210%22 y=%2265%22 font-size=%2250%22 font-weight=%22bold%22 fill=%22%2372D0FF%22 stroke=%22%2318181B%22 stroke-width=%223%22>有所味</text></svg>';" />
+            </a>
+
+            <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                <div id="datasetStatusBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border-[1.5px] border-[#18181B] text-[11px] font-bold shadow-sm">
+                    <span id="datasetDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span id="datasetCountText">自動讀取同資料夾 CSV 中...</span>
+                </div>
+                <button id="reloadSameFolderCsvBtn" type="button" class="poogle-pill-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#FFF57E] hover:bg-[#f7eb5e] text-black text-xs font-bold cursor-pointer" title="重新從同資料夾讀取 全國公廁建檔資料.csv">
+                    <i class="fa-solid fa-rotate"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Center Poogle Search & 3 Oval Selectors -->
+        <div class="w-full max-w-xl mx-auto my-2 space-y-3.5 shrink-0">
+            <h1 class="text-center text-4xl sm:text-5xl font-normal tracking-tight text-black select-none">
+                Poogle Map
+            </h1>
+
+            <div class="relative flex items-center w-full">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 text-[#1D9BF0] text-lg pointer-events-none"></i>
+                <input id="searchInput" type="text" placeholder="搜尋公廁名稱或地址..."
+                    class="w-full pl-11 pr-9 py-2.5 rounded-full bg-white border-[1.5px] border-[#18181B] text-sm sm:text-base text-black placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#72D0FF] shadow-sm transition" />
+                <button id="clearSearchBtn" type="button" class="hidden absolute right-3.5 text-neutral-400 hover:text-black text-sm">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 sm:gap-5 pt-0.5">
+                <div class="relative">
+                    <select id="countyFilterSelect" aria-label="縣市篩選" class="poogle-oval-select w-full h-12 sm:h-14 px-2 text-sm sm:text-base font-medium text-black">
+                        <option value="">請選擇縣市</option>
+                    </select>
+                </div>
+                <div class="relative">
+                    <select id="townFilterSelect" aria-label="鄉鎮篩選" class="poogle-oval-select w-full h-12 sm:h-14 px-2 text-sm sm:text-base font-medium text-black">
+                        <option value="">請選擇鄉鎮</option>
+                    </select>
+                </div>
+                <div class="relative">
+                    <select id="typeFilterSelect" aria-label="公廁類別篩選" class="poogle-oval-select w-full h-12 sm:h-14 px-2 text-sm sm:text-base font-medium text-black">
+                        <option value="">請選擇類型</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- GPS & Distance / Reviewed Filter Controls -->
+            <div class="flex flex-wrap items-center justify-between gap-1.5 pt-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <button id="locateMeBtn" type="button" class="poogle-pill-btn inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#72D0FF] text-black text-xs font-bold">
+                        <i class="fa-solid fa-location-crosshairs"></i>
+                        <span>偵測附近公廁</span>
+                    </button>
+                    <div class="inline-flex items-center bg-white border-[1.5px] border-[#18181B] rounded-full p-0.5 text-[11px]">
+                        <button type="button" data-radius="0" class="radius-btn px-2 py-0.5 rounded-full font-medium text-neutral-700 hover:text-black transition">
+                            全部名冊
+                        </button>
+                        <button type="button" data-radius="100" class="radius-btn px-2.5 py-0.5 rounded-full font-bold bg-[#FFF57E] text-black border border-[#18181B] transition">
+                            100m
+                        </button>
+                        <button type="button" data-radius="500" class="radius-btn px-2 py-0.5 rounded-full font-medium text-neutral-700 hover:text-black transition">
+                            500m
+                        </button>
+                        <button type="button" data-radius="1500" class="radius-btn px-2 py-0.5 rounded-full font-medium text-neutral-700 hover:text-black transition">
+                            1.5km
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-1.5">
+                    <label for="onlyReviewedToggle" class="poogle-pill-btn inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#3CE6B0]/35 hover:bg-[#3CE6B0]/60 text-[11px] font-bold text-black cursor-pointer" title="只顯示已有網友留過星等或評論的公廁">
+                        <input type="checkbox" id="onlyReviewedToggle" class="rounded accent-black cursor-pointer">
+                        <span>⭐ 已有網友評鑑</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toilet List Box -->
+        <div class="flex-1 min-h-0 flex flex-col bg-white/80 border-[1.5px] border-[#18181B] rounded-3xl overflow-hidden shadow-sm mt-1">
+            <div class="px-4 py-2 bg-[#FFF57E]/70 border-b-[1.5px] border-[#18181B] flex items-center justify-between gap-2 text-xs shrink-0">
+                <div class="flex items-center gap-1.5 min-w-0">
+                    <i id="gpsIcon" class="fa-solid fa-location-dot text-black"></i>
+                    <span id="listHeaderTitle" class="font-bold text-black truncate">全國公廁建檔清單</span>
+                    <span id="filteredCountBadge" class="px-2 py-0.5 rounded-full bg-white border border-[#18181B] text-black font-bold text-[11px] shrink-0">0 間</span>
+                </div>
+                <div class="flex items-center gap-2 shrink-0 text-[11px]">
+                    <span id="nearby100mBadge" class="px-2 py-0.5 rounded-full bg-[#FF85D0] border border-[#18181B] text-black font-bold">
+                        附近 100m：0 間
+                    </span>
+                </div>
+            </div>
+
+            <div class="px-3.5 py-1 bg-[#FCF6E8] border-b border-[#18181B]/15 flex items-center justify-between text-[11px] text-neutral-700 shrink-0">
+                <span id="gpsText" class="truncate">正在自動匯入同資料夾《全國公廁建檔資料.csv》...</span>
+            </div>
+
+            <div id="toiletListContainer" class="flex-1 overflow-y-auto p-2.5 space-y-2">
+                <div class="p-8 text-center text-xs font-extrabold text-black space-y-2">
+                    <div><i class="fa-solid fa-spinner fa-spin text-[#1D9BF0] text-lg mr-1"></i> 正在自動從同資料夾匯入《全國公廁建檔資料.csv》...</div>
+                    <div class="text-[11px] font-normal text-neutral-600">請確認在 VS Code 中使用 <strong>Open with Live Server</strong> 開啟，且檔名為 <code>全國公廁建檔資料.csv</code></div>
+                </div>
+            </div>
+
+            <div id="listPaginationBar" class="hidden px-4 py-1.5 bg-[#FCF6E8] border-t-[1.5px] border-[#18181B] items-center justify-between text-xs text-black shrink-0">
+                <span id="paginationInfoText" class="font-medium">顯示第 1 - 80 筆</span>
+                <div class="flex items-center gap-1.5">
+                    <button id="prevPageBtn" type="button" class="poogle-pill-btn px-2.5 py-0.5 rounded-full bg-white disabled:opacity-40 font-bold">上一頁</button>
+                    <button id="nextPageBtn" type="button" class="poogle-pill-btn px-2.5 py-0.5 rounded-full bg-[#FFF57E] disabled:opacity-40 font-bold">下一頁</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- RIGHT PANEL: Map & Top-Right Home Button -->
+    <section class="w-full lg:w-[52%] h-[46%] lg:h-full bg-[#FFF57E] relative flex flex-col p-3 sm:p-5 order-1 lg:order-2 overflow-hidden">
+        
+        <div class="absolute top-5 right-6 z-[450] flex items-center gap-2.5">
+            <a href="./index.html" class="poogle-pill-btn w-24 sm:w-28 h-11 sm:h-13 rounded-[9999px] bg-[#72D0FF] hover:bg-[#5bc6ff] text-black text-sm sm:text-base font-medium flex items-center justify-center shadow-md no-underline" title="返回主頁 (index.html)">
+                主頁
+            </a>
+        </div>
+
+        <div class="w-full h-full rounded-[28px] border-2 border-[#18181B] overflow-hidden relative shadow-[0_6px_0_#18181B] bg-[#FFF57E]">
+            <div id="map"></div>
+
+            <div class="absolute bottom-3 left-3 z-[400] bg-[#FCF6E8]/95 backdrop-blur-sm border-[1.5px] border-[#18181B] rounded-2xl p-2.5 shadow-[0_4px_0_#18181B] max-w-xs text-[11px] space-y-1 pointer-events-auto">
+                <div class="font-extrabold text-black flex items-center justify-between gap-3">
+                    <span><i class="fa-solid fa-location-dot text-[#FF85D0] mr-1"></i>Poogle 圖例</span>
+                    <span id="mapViewportCount" class="px-1.5 py-0.5 rounded-full bg-[#FFF57E] border border-[#18181B] text-[10px] font-bold">視野 0 間</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-neutral-800 pt-0.5">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-[#FF85D0] border border-[#18181B] inline-block"></span>
+                        <span><strong>≤ 100m</strong> 附近公廁</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-[#3CE6B0] border border-[#18181B] inline-block"></span>
+                        <span><strong>已有評論</strong></span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-[#72D0FF] border border-[#18181B] inline-block"></span>
+                        <span><strong>一般公廁</strong></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- MODAL: PUBLIC TOILET REVIEWS & ENVIRONMENT STATUS                   -->
+    <!-- =================================================================== -->
+    <div id="toiletReviewsModal" class="hidden fixed inset-0 z-[650] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#FCF6E8] rounded-[28px] max-w-xl w-full border-2 border-[#18181B] shadow-[0_10px_0_#18181B] overflow-hidden flex flex-col max-h-[85vh]">
+            <!-- Header -->
+            <div class="bg-[#72D0FF] border-b-2 border-[#18181B] px-6 py-4 flex items-start justify-between gap-3 shrink-0">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span id="modalToiletTypeBadge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#FFF57E] border border-[#18181B] text-black">公廁</span>
+                        <span id="modalToiletGradeBadge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white border border-[#18181B] text-black">特優級</span>
+                    </div>
+                    <h3 id="modalToiletName" class="font-extrabold text-base sm:text-xl text-black mt-1.5 break-words">公廁名稱</h3>
+                    <p id="modalToiletAddress" class="text-xs text-neutral-800 mt-0.5 break-words"></p>
+                </div>
+                <button id="closeReviewsModalBtn" type="button" class="poogle-pill-btn w-8 h-8 rounded-full bg-white text-black flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Environment Status Summary (4 Dimensions) -->
+            <div id="modalRatingsSummaryBox" class="p-5 bg-white border-b-2 border-[#18181B]/15 shrink-0">
+                <!-- Populated dynamically -->
+            </div>
+
+            <!-- User Comments List -->
+            <div id="modalCommentsList" class="p-5 overflow-y-auto space-y-3 flex-1 text-xs sm:text-sm">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Box -->
+    <div id="toastBox" class="fixed bottom-5 right-5 z-[700] hidden max-w-sm bg-[#FFF57E] text-black px-4 py-3 rounded-2xl border-2 border-[#18181B] shadow-[0_5px_0_#18181B] flex items-center gap-3 text-xs sm:text-sm transition-all">
+        <i id="toastIcon" class="fa-solid fa-circle-info text-black text-base"></i>
+        <span id="toastMessage" class="font-bold leading-snug">訊息提示</span>
+    </div>
+
+    <script>
+        // ===================================================================
+        // FIREBASE INITIALIZATION & GLOBAL STATE (Cloud Firestore Taiwan)
+        // ===================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCfUm1MLY9C3Q3ukfCrvxU5ypjpqCbvU2A",
+            authDomain: "toilet-rating-grad-proj.firebaseapp.com",
+            databaseURL: "https://toilet-rating-grad-proj-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "toilet-rating-grad-proj",
+            storageBucket: "toilet-rating-grad-proj.firebasestorage.app",
+            messagingSenderId: "1000677739751",
+            appId: "1:1000677739751:web:4de2b80ebb02cd02aee642",
+            measurementId: "G-0MRLKY3EY8"
+        };
+
+        let db = null;
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            db = firebase.firestore();
+        } catch (err) {
+            console.warn('Firebase Cloud Firestore initialization warning:', err);
+        }
+
+        // 自動清除舊版殘留的本機測試評論快取，確保與 Firestore 後台 100% 一致
+        try {
+            localStorage.removeItem('poogle_shared_evaluations_v1');
+            indexedDB.deleteDatabase('TaiwanPublicToiletEvalDB_v7');
+        } catch (e) {}
+
+        const IDB_NAME = 'TaiwanPublicToiletMapDB_v9';
+        const IDB_STORE_DATA = 'dataset_cache';
+
+        const COUNTY_DEFAULT_COORDS = {
+            '臺北市': [25.032969, 121.565418], '台北市': [25.032969, 121.565418],
+            '新北市': [25.016983, 121.462787], '桃園市': [24.993628, 121.300980],
+            '臺中市': [24.147736, 120.673648], '台中市': [24.147736, 120.673648],
+            '臺南市': [22.999728, 120.227028], '台南市': [22.999728, 120.227028],
+            '高雄市': [22.627278, 120.301435], '基隆市': [25.127603, 121.739183],
+            '新竹市': [24.813829, 120.967480], '嘉義市': [23.480075, 120.449111],
+            '新竹縣': [24.838723, 121.017725], '苗栗縣': [24.560159, 120.821427],
+            '彰化縣': [24.051796, 120.516135], '南投縣': [23.960998, 120.971864],
+            '雲林縣': [23.709203, 120.431332], '嘉義縣': [23.451843, 120.255461],
+            '屏東縣': [22.676113, 120.488465], '宜蘭縣': [24.702107, 121.737750],
+            '花蓮縣': [23.987159, 121.601571], '臺東縣': [22.758300, 121.144400],
+            '台東縣': [22.758300, 121.144400], '澎湖縣': [23.571190, 119.579316],
+            '金門縣': [24.449372, 118.376732], '連江縣': [26.150556, 119.928889]
+        };
+
+        const state = {
+            allToilets: [],
+            filteredToilets: [],
+            spatialGrid: new Map(),
+            countyToTowns: new Map(),
+            reviewsByToiletName: new Map(),
+            userAvatarByUid: new Map(),
+            totalCloudReviews: 0,
+            userLat: null,
+            userLng: null,
+            userAccuracy: null,
+            onlyReviewed: false,
+            searchQuery: '',
+            countyFilter: '',
+            townFilter: '',
+            typeFilter: '',
+            radiusFilter: 100,
+            currentPage: 1,
+            pageSize: 80,
+            map: null,
+            markerLayerGroup: null,
+            userMarker: null,
+            userCircle100m: null
+        };
+
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function getPoogleAvatarSvg(avatarType, uidSuffix = 'map') {
+            if (avatarType === 'yellow_urinal') {
+                return `
+                    <svg viewBox="0 0 200 200" class="w-full h-full block">
+                        <defs>
+                            <radialGradient id="yellowTile_${uidSuffix}" cx="50%" cy="45%" r="58%">
+                                <stop offset="0%" stop-color="#FFF152" /><stop offset="70%" stop-color="#E5B80B" /><stop offset="100%" stop-color="#9E7400" />
+                            </radialGradient>
+                            <linearGradient id="urinalBody_${uidSuffix}" x1="15%" y1="0%" x2="85%" y2="100%">
+                                <stop offset="0%" stop-color="#FFFFFF" /><stop offset="60%" stop-color="#E2E2E2" /><stop offset="100%" stop-color="#B0B0B0" />
+                            </linearGradient>
+                        </defs>
+                        <rect x="0" y="0" width="200" height="200" fill="url(#yellowTile_${uidSuffix})" />
+                        <g stroke="#B88600" stroke-width="2" opacity="0.45">
+                            <line x1="50" y1="0" x2="50" y2="132" /><line x1="100" y1="0" x2="100" y2="132" /><line x1="150" y1="0" x2="150" y2="132" />
+                            <line x1="0" y1="44" x2="200" y2="44" /><line x1="0" y1="88" x2="200" y2="88" /><line x1="0" y1="132" x2="200" y2="132" />
+                        </g>
+                        <rect x="95" y="34" width="10" height="22" rx="3" fill="#D4D4D8" />
+                        <path d="M 68,54 C 68,46 132,46 132,54 L 138,118 C 140,152 120,170 100,170 C 80,170 60,152 62,118 Z" fill="url(#urinalBody_${uidSuffix})" />
+                        <path d="M 77,64 C 77,57 123,57 123,64 L 127,116 C 128,140 114,153 100,153 C 86,153 72,140 73,116 Z" fill="#BCBCBC" />
+                    </svg>
+                `;
+            }
+            if (avatarType === 'blue_squat') {
+                return `
+                    <svg viewBox="0 0 200 200" class="w-full h-full block">
+                        <defs>
+                            <radialGradient id="blueTile_${uidSuffix}" cx="50%" cy="45%" r="58%">
+                                <stop offset="0%" stop-color="#52C4FF" /><stop offset="70%" stop-color="#1479C9" /><stop offset="100%" stop-color="#083B6B" />
+                            </radialGradient>
+                            <linearGradient id="squatGrad_${uidSuffix}" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#FFFFFF" /><stop offset="65%" stop-color="#DFDFDF" /><stop offset="100%" stop-color="#A8A8A8" />
+                            </linearGradient>
+                        </defs>
+                        <rect x="0" y="0" width="200" height="200" fill="url(#blueTile_${uidSuffix})" />
+                        <g stroke="#9EE0FF" stroke-width="2" opacity="0.55">
+                            <line x1="50" y1="0" x2="50" y2="132" /><line x1="100" y1="0" x2="100" y2="132" /><line x1="150" y1="0" x2="150" y2="132" />
+                            <line x1="0" y1="44" x2="200" y2="44" /><line x1="0" y1="88" x2="200" y2="88" /><line x1="0" y1="132" x2="200" y2="132" />
+                        </g>
+                        <rect x="96" y="42" width="8" height="48" rx="3" fill="#E4E4E7" />
+                        <path d="M 44,142 C 44,108 70,88 100,88 C 130,88 156,108 156,142 C 156,166 132,178 100,178 C 68,178 44,166 44,142 Z" fill="url(#squatGrad_${uidSuffix})" />
+                        <ellipse cx="100" cy="136" rx="26" ry="32" fill="#B5B5B5" />
+                        <path d="M 74,108 C 74,82 126,82 126,108 C 126,118 74,118 74,108 Z" fill="#FFFFFF" />
+                    </svg>
+                `;
+            }
+            return `
+                <svg viewBox="0 0 200 200" class="w-full h-full block">
+                    <defs>
+                        <radialGradient id="tileVignette_${uidSuffix}" cx="50%" cy="45%" r="55%">
+                            <stop offset="0%" stop-color="#D9232E" /><stop offset="70%" stop-color="#9E111A" /><stop offset="100%" stop-color="#5E070D" />
+                        </radialGradient>
+                        <linearGradient id="toiletRimGrad_${uidSuffix}" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#FFFFFF" /><stop offset="100%" stop-color="#D8D8D8" />
+                        </linearGradient>
+                        <linearGradient id="toiletBowlGrad_${uidSuffix}" x1="20%" y1="0%" x2="80%" y2="100%">
+                            <stop offset="0%" stop-color="#F5F5F5" /><stop offset="55%" stop-color="#CCCCCC" /><stop offset="100%" stop-color="#9E9E9E" />
+                        </linearGradient>
+                    </defs>
+                    <rect x="0" y="0" width="200" height="200" fill="url(#tileVignette_${uidSuffix})" />
+                    <g stroke="#E8807F" stroke-width="2" opacity="0.65">
+                        <line x1="50" y1="0" x2="50" y2="132" /><line x1="100" y1="0" x2="100" y2="132" /><line x1="150" y1="0" x2="150" y2="132" />
+                        <line x1="0" y1="44" x2="200" y2="44" /><line x1="0" y1="88" x2="200" y2="88" /><line x1="0" y1="132" x2="200" y2="132" />
+                    </g>
+                    <ellipse cx="100" cy="176" rx="40" ry="12" fill="#3B0307" opacity="0.55" />
+                    <path d="M 78,125 L 122,125 L 116,172 C 115,180 85,180 84,172 Z" fill="url(#toiletBowlGrad_${uidSuffix})" />
+                    <rect x="70" y="64" width="60" height="36" rx="8" fill="url(#toiletRimGrad_${uidSuffix})" />
+                    <path d="M 52,92 C 52,138 72,154 100,154 C 128,154 148,138 148,92 Z" fill="url(#toiletBowlGrad_${uidSuffix})" />
+                    <ellipse cx="100" cy="92" rx="49" ry="19" fill="url(#toiletRimGrad_${uidSuffix})" />
+                    <ellipse cx="100" cy="92" rx="35" ry="12" fill="#B8B8B8" />
+                </svg>
+            `;
+        }
+
+        let toastTimer = null;
+        function showToast(message, type = 'info') {
+            const box = document.getElementById('toastBox');
+            const msgEl = document.getElementById('toastMessage');
+            const iconEl = document.getElementById('toastIcon');
+            if (!box || !msgEl || !iconEl) return;
+
+            msgEl.textContent = message;
+            if (type === 'error') {
+                box.style.backgroundColor = '#FF85D0';
+                iconEl.className = 'fa-solid fa-triangle-exclamation text-black text-base';
+            } else if (type === 'success') {
+                box.style.backgroundColor = '#3CE6B0';
+                iconEl.className = 'fa-solid fa-circle-check text-black text-base';
+            } else {
+                box.style.backgroundColor = '#FFF57E';
+                iconEl.className = 'fa-solid fa-circle-info text-black text-base';
+            }
+
+            box.classList.remove('hidden');
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                box.classList.add('hidden');
+            }, 3500);
+        }
+
+        // ===================================================================
+        // REAL-TIME FIREBASE LISTENER FOR PUBLIC TOILET REVIEWS
+        // ===================================================================
+        function mergeAndRebuildReviewsMap(cloudDocs = []) {
+            state.reviewsByToiletName.clear();
+            const seenKeys = new Set();
+            let total = 0;
+
+            const addReviewItem = (data) => {
+                const tName = (data.name || '').trim();
+                if (!tName) return;
+                const uniqueKey = data.evalId || data.id || `${tName}_${data.createdAt || ''}_${data.nickname || ''}_${data.comment || ''}`;
+                if (seenKeys.has(uniqueKey)) return;
+                seenKeys.add(uniqueKey);
+
+                if (!state.reviewsByToiletName.has(tName)) {
+                    state.reviewsByToiletName.set(tName, []);
+                }
+                state.reviewsByToiletName.get(tName).push(data);
+                total++;
+            };
+
+            // 100% 以 Cloud Firestore 雲端資料為準
+            cloudDocs.forEach(addReviewItem);
+
+            state.totalCloudReviews = total;
+            refreshDistancesAndRender();
+        }
+
+        function startRealtimeCloudReviewsListener() {
+            if (!db) {
+                mergeAndRebuildReviewsMap([]);
+                return;
+            }
+
+            // 監聽使用者頭貼設定，確保換頭貼後評論列表即時同步
+            db.collection('user_profiles').onSnapshot((snap) => {
+                snap.forEach((doc) => {
+                    const d = doc.data();
+                    if (d && d.avatarType) {
+                        state.userAvatarByUid.set(doc.id, d.avatarType);
+                    }
+                });
+            }, () => {});
+
+            db.collection('evaluations').onSnapshot((snapshot) => {
+                const cloudDocs = [];
+                snapshot.forEach((doc) => {
+                    cloudDocs.push({ id: doc.id, ...doc.data() });
+                });
+                cloudDocs.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+                mergeAndRebuildReviewsMap(cloudDocs);
+            }, (err) => {
+                console.warn('Cloud Firestore listener warning:', err);
+                mergeAndRebuildReviewsMap([]);
+            });
+        }
+
+        function getToiletReviewStats(toiletName) {
+            const list = state.reviewsByToiletName.get((toiletName || '').trim()) || [];
+            if (list.length === 0) return null;
+
+            let sumOverall = 0, sumSpace = 0, sumSmell = 0, sumLighting = 0, sumClean = 0;
+            list.forEach(r => {
+                const rt = r.ratings || {};
+                const sp = Number(rt.space ?? r.stars ?? 3);
+                const sm = Number(rt.smell ?? r.stars ?? 3);
+                const li = Number(rt.lighting ?? r.stars ?? 3);
+                const cl = Number(rt.cleanliness ?? r.stars ?? 3);
+                sumSpace += sp;
+                sumSmell += sm;
+                sumLighting += li;
+                sumClean += cl;
+                sumOverall += (sp + sm + li + cl) / 4;
+            });
+
+            const count = list.length;
+            return {
+                count,
+                avgOverall: (sumOverall / count).toFixed(1),
+                avgSpace: (sumSpace / count).toFixed(1),
+                avgSmell: (sumSmell / count).toFixed(1),
+                avgLighting: (sumLighting / count).toFixed(1),
+                avgCleanliness: (sumClean / count).toFixed(1),
+                reviews: list
+            };
+        }
+
+        window.openToiletReviewsModal = function(toiletKey) {
+            const toilet = state.allToilets.find(t => t.key === toiletKey);
+            if (!toilet) return;
+
+            const modal = document.getElementById('toiletReviewsModal');
+            document.getElementById('modalToiletTypeBadge').textContent = toilet.normalizedType || toilet.type || '公廁';
+            document.getElementById('modalToiletGradeBadge').textContent = toilet.grade || '未評鑑';
+            document.getElementById('modalToiletName').textContent = toilet.name;
+            document.getElementById('modalToiletAddress').textContent = `地址：${toilet.address}｜管理單位：${toilet.exec || '環境管理單位'}`;
+
+            const stats = getToiletReviewStats(toilet.name);
+            const summaryBox = document.getElementById('modalRatingsSummaryBox');
+            const commentsList = document.getElementById('modalCommentsList');
+
+            if (!stats) {
+                summaryBox.innerHTML = `
+                    <div class="text-center py-3 space-y-1">
+                        <div class="text-2xl">✨</div>
+                        <div class="font-extrabold text-black text-sm">這間公廁目前還沒有網友實地評鑑</div>
+                        <div class="text-xs text-neutral-600">只要實際前往該公廁 100 公尺內，即可從首頁「公廁回報系統」成為第一位評鑑員！</div>
+                    </div>
+                `;
+                commentsList.innerHTML = `<div class="p-6 text-center text-neutral-500 text-xs">尚無網友留言紀錄</div>`;
+            } else {
+                const renderBar = (label, val) => {
+                    const pct = Math.min(100, Math.max(0, (Number(val) / 5) * 100));
+                    const barColor = Number(val) >= 4 ? '#3CE6B0' : (Number(val) >= 3 ? '#FFF57E' : '#FF85D0');
+                    return `
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="w-16 font-bold text-black text-right shrink-0">${label}</span>
+                            <div class="flex-1 h-3 rounded-full bg-[#FCF6E8] border border-[#18181B] overflow-hidden p-0.5">
+                                <div class="h-full rounded-full transition-all" style="width:${pct}%; background-color:${barColor};"></div>
+                            </div>
+                            <span class="w-8 font-extrabold text-black text-right">${val}</span>
+                        </div>
+                    `;
+                };
+
+                summaryBox.innerHTML = `
+                    <div class="flex flex-col sm:flex-row items-center gap-5">
+                        <div class="flex flex-col items-center justify-center px-5 py-3 rounded-2xl bg-[#FFF57E] border-[1.5px] border-[#18181B] shrink-0">
+                            <span class="text-[11px] font-bold text-neutral-700">綜合星等</span>
+                            <span class="text-3xl font-black text-black leading-tight my-0.5">${stats.avgOverall}</span>
+                            <span class="text-[11px] font-extrabold text-[#18181B]">共 ${stats.count} 則評鑑</span>
+                        </div>
+                        <div class="flex-1 w-full space-y-2">
+                            ${renderBar('空間大小', stats.avgSpace)}
+                            ${renderBar('氣味', stats.avgSmell)}
+                            ${renderBar('照明', stats.avgLighting)}
+                            ${renderBar('潔淨度', stats.avgCleanliness)}
+                        </div>
+                    </div>
+                `;
+
+                const getSafeLocalAvatar = (uid) => {
+                    if (!uid) return null;
+                    try {
+                        return localStorage.getItem(`poogle_avatar_${uid}`);
+                    } catch (e) {
+                        return null;
+                    }
+                };
+
+                commentsList.innerHTML = stats.reviews.map((r, rIdx) => {
+                    const dateStr = r.createdAt ? r.createdAt.slice(0, 10) : '近期';
+                    const rt = r.ratings || {};
+                    const isAnon = !r.userId || !r.nickname || r.nickname === '熱心評鑑員' || r.nickname === '匿名' || r.nickname === '匿名公廁探險家';
+                    const reviewerName = isAnon ? '匿名公廁探險家' : r.nickname;
+
+                    let avatarBadgeHtml = '';
+                    if (isAnon) {
+                        const anonPalette = ['#FF99D3', '#80E4FF', '#F3EF84'];
+                        const seed = String(r.evalId || r.id || r.createdAt || rIdx).split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+                        const bgColor = (r.anonBgColor && anonPalette.includes(r.anonBgColor))
+                            ? r.anonBgColor
+                            : anonPalette[seed % anonPalette.length];
+                        avatarBadgeHtml = `
+                            <span class="w-8 h-8 rounded-full border-[1.5px] border-[#18181B] flex items-center justify-center shrink-0"
+                                  style="background-color: ${bgColor};">
+                                <i class="fa-solid fa-poop text-sm" style="color: #2A348C;"></i>
+                            </span>
+                        `;
+                    } else {
+                        const userChosenAvatar = state.userAvatarByUid.get(r.userId)
+                            || getSafeLocalAvatar(r.userId)
+                            || (r.avatarType && r.avatarType !== 'anon_poop' ? r.avatarType : 'red_toilet');
+                        avatarBadgeHtml = `
+                            <span class="w-8 h-8 rounded-full border-[1.5px] border-[#18181B] overflow-hidden flex items-center justify-center shrink-0">
+                                ${getPoogleAvatarSvg(userChosenAvatar, `rev_${rIdx}`)}
+                            </span>
+                        `;
+                    }
+
+                    const commentHtml = r.comment
+                        ? `<p class="text-black font-medium text-xs sm:text-sm mt-1.5 bg-white p-3 rounded-xl border border-[#18181B]/20 leading-relaxed">「${escapeHtml(r.comment)}」</p>`
+                        : `<p class="text-neutral-400 text-xs mt-1 italic">（使用者僅提交星等評分，未留下文字）</p>`;
+
+                    return `
+                        <div class="p-3.5 rounded-2xl bg-white border-[1.5px] border-[#18181B] space-y-1">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-2">
+                                    ${avatarBadgeHtml}
+                                    <span class="font-extrabold text-black text-xs">${escapeHtml(reviewerName)}</span>
+                                    <span class="px-2 py-0.5 rounded-full bg-[#FFF57E] border border-[#18181B] font-extrabold text-[11px] text-black">
+                                        ${Number(r.stars || 3).toFixed(1)} ★
+                                    </span>
+                                </div>
+                                <span class="text-[11px] text-neutral-500">${escapeHtml(dateStr)}</span>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2 text-[11px] text-neutral-600 pt-0.5">
+                                <span>空間 ${rt.space ?? '-'}★</span>・
+                                <span>氣味 ${rt.smell ?? '-'}★</span>・
+                                <span>照明 ${rt.lighting ?? '-'}★</span>・
+                                <span>潔淨度 ${rt.cleanliness ?? '-'}★</span>
+                            </div>
+                            ${commentHtml}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            modal.classList.remove('hidden');
+        };
+
+        function openDatabase() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(IDB_NAME, 1);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(IDB_STORE_DATA)) db.createObjectStore(IDB_STORE_DATA);
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function saveDatasetToIDB(records, fileName) {
+            try {
+                const db = await openDatabase();
+                return new Promise((resolve) => {
+                    const tx = db.transaction(IDB_STORE_DATA, 'readwrite');
+                    tx.objectStore(IDB_STORE_DATA).put({ records, fileName, savedAt: new Date().toISOString() }, 'main_csv_dataset');
+                    tx.oncomplete = () => resolve(true);
+                    tx.onerror = () => resolve(false);
+                });
+            } catch (err) { return false; }
+        }
+
+        async function loadDatasetFromIDB() {
+            try {
+                const db = await openDatabase();
+                return new Promise((resolve) => {
+                    const tx = db.transaction(IDB_STORE_DATA, 'readonly');
+                    const req = tx.objectStore(IDB_STORE_DATA).get('main_csv_dataset');
+                    req.onsuccess = () => resolve(req.result || null);
+                    req.onerror = () => resolve(null);
+                });
+            } catch (err) { return null; }
+        }
+
+        function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
+            if (lat1 === null || lon1 === null || lat2 === null || lon2 === null) return Infinity;
+            if (!Number.isFinite(lat2) || !Number.isFinite(lon2)) return Infinity;
+            const R = 6371000;
+            const toRad = Math.PI / 180;
+            const dLat = (lat2 - lat1) * toRad;
+            const dLon = (lon2 - lon1) * toRad;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+        }
+
+        const COUNTY_CODE_MAP = {
+            '63000': '臺北市', '64000': '高雄市', '65000': '新北市', '66000': '臺中市',
+            '67000': '臺南市', '68000': '桃園市', '10002': '宜蘭縣', '10004': '新竹縣',
+            '10005': '苗栗縣', '10007': '彰化縣', '10008': '南投縣', '10009': '雲林縣',
+            '10010': '嘉義縣', '10013': '屏東縣', '10014': '臺東縣', '10015': '花蓮縣',
+            '10016': '澎湖縣', '10017': '基隆市', '10018': '新竹市', '10020': '嘉義市',
+            '09020': '金門縣', '9020': '金門縣', '09007': '連江縣', '9007': '連江縣'
+        };
+
+        function resolveCountyName(rawCounty, address) {
+            const clean = (rawCounty || '').trim();
+            if (COUNTY_CODE_MAP[clean]) return COUNTY_CODE_MAP[clean];
+            if (clean && !/^\d+$/.test(clean)) return clean;
+            if (address) {
+                const m = address.trim().match(/^(臺北市|台北市|新北市|桃園市|臺中市|台中市|臺南市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|臺東縣|台東縣|澎湖縣|金門縣|連江縣)/);
+                if (m) return m[1];
+            }
+            return clean || '其他縣市';
+        }
+
+        function extractTownFromAddress(address, countyName, rawAreacode) {
+            if (rawAreacode && !/^\d+$/.test(rawAreacode)) return rawAreacode;
+            if (!address) return '';
+            let rest = address.trim();
+            if (countyName && rest.startsWith(countyName)) rest = rest.slice(countyName.length);
+            else rest = rest.replace(/^(臺北市|台北市|新北市|桃園市|臺中市|台中市|臺南市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|臺東縣|台東縣|澎湖縣|金門縣|連江縣)/, '');
+            const match = rest.match(/^(.{1,4}?(?:區|鎮|鄉|市))/);
+            return match ? match[1] : '';
+        }
+
+        function decodeCsvArrayBuffer(buffer) {
+            try {
+                const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+                return utf8Decoder.decode(buffer);
+            } catch (e) {
+                try {
+                    const big5Decoder = new TextDecoder('big5');
+                    return big5Decoder.decode(buffer);
+                } catch (e2) {
+                    return new TextDecoder('utf-8').decode(buffer);
+                }
+            }
+        }
+
+        function parseCSVRows(text) {
+            const rows = [];
+            let currentRow = [];
+            let currentVal = '';
+            let inQuotes = false;
+            const len = text.length;
+
+            for (let i = 0; i < len; i++) {
+                const c = text[i];
+                if (inQuotes) {
+                    if (c === '"') {
+                        if (i + 1 < len && text[i + 1] === '"') {
+                            currentVal += '"';
+                            i++;
+                        } else {
+                            inQuotes = false;
+                        }
+                    } else {
+                        currentVal += c;
+                    }
+                } else {
+                    if (c === '"') {
+                        inQuotes = true;
+                    } else if (c === ',') {
+                        currentRow.push(currentVal.trim());
+                        currentVal = '';
+                    } else if (c === '\r') {
+                        if (i + 1 < len && text[i + 1] === '\n') i++;
+                        currentRow.push(currentVal.trim());
+                        currentVal = '';
+                        if (currentRow.length > 1 || (currentRow.length === 1 && currentRow[0] !== '')) {
+                            rows.push(currentRow);
+                        }
+                        currentRow = [];
+                    } else if (c === '\n') {
+                        currentRow.push(currentVal.trim());
+                        currentVal = '';
+                        if (currentRow.length > 1 || (currentRow.length === 1 && currentRow[0] !== '')) {
+                            rows.push(currentRow);
+                        }
+                        currentRow = [];
+                    } else {
+                        currentVal += c;
+                    }
+                }
+            }
+            if (currentVal !== '' || currentRow.length > 0) {
+                currentRow.push(currentVal.trim());
+                if (currentRow.length > 1 || (currentRow.length === 1 && currentRow[0] !== '')) {
+                    rows.push(currentRow);
+                }
+            }
+            return rows;
+        }
+
+        function parseCSV(text) {
+            const cleanText = text.replace(/^\uFEFF/, '');
+            const rows = parseCSVRows(cleanText);
+            if (rows.length < 2) return [];
+
+            const headers = rows[0].map(h => h.replace(/^["']|["']$/g, '').trim().toLowerCase());
+            const findExactOrIncludes = (exactNames, partialNames) => {
+                let idx = headers.findIndex(h => exactNames.includes(h));
+                if (idx >= 0) return idx;
+                return headers.findIndex(h => partialNames.some(n => h.includes(n)));
+            };
+
+            const cIdx = findExactOrIncludes(['county', '縣市名稱', '縣市', '縣市代碼'], ['county', '縣市']);
+            const aIdx = findExactOrIncludes(['areacode', '鄉鎮市名稱', '鄉鎮市區', '鄉鎮代碼'], ['areacode', '鄉鎮']);
+            const vIdx = findExactOrIncludes(['village', '村里名稱', '村里'], ['village', '村里']);
+            const numIdx = findExactOrIncludes(['number', '建檔編號', '公廁編號'], ['number', '編號']);
+            const nameIdx = findExactOrIncludes(['name', '建檔名稱', '公廁名稱'], ['name', '名稱']);
+            const addrIdx = findExactOrIncludes(['address', '地址'], ['address', '地址']);
+            const latIdx = findExactOrIncludes(['latitude', 'lat', '緯度'], ['lat', '緯度']);
+            const lngIdx = findExactOrIncludes(['longitude', 'lng', 'lon', '經度'], ['lon', 'lng', '經度']);
+            const gradeIdx = findExactOrIncludes(['grade', '等級', '評鑑等級'], ['grade', '等級']);
+            const type2Idx = findExactOrIncludes(['type2', '公廁類別', '場所類別'], ['type2', '類別']);
+            const typeIdx = findExactOrIncludes(['type', '公廁類型'], ['type', '類型']);
+            const execIdx = findExactOrIncludes(['exec', 'administration', '管理單位', '主管機關'], ['exec', 'administration', '管理', '機關']);
+            const diaperIdx = findExactOrIncludes(['diaper', '尿布檯組', '尿布台'], ['diaper', '尿布']);
+
+            const records = [];
+            for (let i = 1; i < rows.length; i++) {
+                const cols = rows[i];
+                const hasAnyContent = cols.some(cell => cell !== '');
+                if (!hasAnyContent) continue;
+
+                const address = (addrIdx >= 0 && cols[addrIdx]) ? cols[addrIdx] : '';
+                const rawCounty = (cIdx >= 0 && cols[cIdx]) ? cols[cIdx] : '';
+                const county = resolveCountyName(rawCounty, address);
+                const areacode = (aIdx >= 0 && cols[aIdx]) ? cols[aIdx] : '';
+                const village = (vIdx >= 0 && cols[vIdx]) ? cols[vIdx] : '';
+                const number = (numIdx >= 0 && cols[numIdx]) ? cols[numIdx] : `T-${i}`;
+                const name = (nameIdx >= 0 && cols[nameIdx]) ? cols[nameIdx] : (address || `公廁 #${number}`);
+
+                let lat = latIdx >= 0 ? parseFloat(cols[latIdx]) : NaN;
+                let lng = lngIdx >= 0 ? parseFloat(cols[lngIdx]) : NaN;
+                let hasExactCoords = true;
+
+                if (Number.isFinite(lat) && Number.isFinite(lng) && lat > 90 && lng >= 10 && lng <= 40) {
+                    const tmp = lat;
+                    lat = lng;
+                    lng = tmp;
+                }
+
+                if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat === 0 || lng === 0 || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+                    hasExactCoords = false;
+                    const fallback = COUNTY_DEFAULT_COORDS[county] || [23.973875, 120.982024];
+                    lat = fallback[0];
+                    lng = fallback[1];
+                }
+
+                const grade = gradeIdx >= 0 ? (cols[gradeIdx] || '未評鑑') : '未評鑑';
+                const type2 = type2Idx >= 0 ? (cols[type2Idx] || '') : '';
+                const type = typeIdx >= 0 ? (cols[typeIdx] || type2 || '公廁') : (type2 || '公廁');
+                const exec = execIdx >= 0 ? (cols[execIdx] || '') : '';
+                const diaper = diaperIdx >= 0 ? (cols[diaperIdx] || '0') : '0';
+
+                records.push({
+                    idx: i,
+                    key: `${number}_${i}`,
+                    number,
+                    name,
+                    address,
+                    county,
+                    areacode,
+                    village,
+                    lat,
+                    lng,
+                    hasExactCoords,
+                    grade,
+                    type2,
+                    type,
+                    exec,
+                    diaper,
+                    distance: Infinity
+                });
+            }
+            return records;
+        }
+
+        const CANDIDATE_CSV_FILES = [
+            './全國公廁建檔資料.csv',
+            '全國公廁建檔資料.csv',
+            encodeURI('./全國公廁建檔資料.csv'),
+            './toilets.csv',
+            'toilets.csv'
+        ];
+
+        async function autoFetchSameFolderCSV(forceReload = false) {
+            const dot = document.getElementById('datasetDot');
+            const countText = document.getElementById('datasetCountText');
+            const gpsText = document.getElementById('gpsText');
+
+            if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+            if (countText) countText.textContent = '自動匯入同資料夾 CSV 中...';
+
+            for (const filePath of CANDIDATE_CSV_FILES) {
+                try {
+                    const fetchUrl = forceReload ? `${filePath}?t=${Date.now()}` : filePath;
+                    const response = await fetch(fetchUrl, { cache: forceReload ? 'no-store' : 'default' });
+                    if (!response.ok) continue;
+
+                    const buffer = await response.arrayBuffer();
+                    const text = decodeCsvArrayBuffer(buffer);
+                    const records = parseCSV(text);
+
+                    if (records && records.length > 0) {
+                        state.allToilets = records;
+                        buildIndexesAndDropdowns(state.allToilets);
+                        await saveDatasetToIDB(records, '全國公廁建檔資料.csv');
+
+                        if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                        if (countText) countText.innerHTML = `已匯入 <strong>${records.length.toLocaleString()}</strong> 間`;
+                        if (gpsText && state.userLat === null) {
+                            gpsText.textContent = `✅ 已完整匯入 ${records.length.toLocaleString()} 筆公廁資料與雲端即時評價！`;
+                        }
+                        refreshDistancesAndRender();
+                        if (forceReload) {
+                            showToast(`已成功從同資料夾完整匯入 ${records.length.toLocaleString()} 筆公廁資料！`, 'success');
+                        }
+                        return true;
+                    }
+                } catch (err) {}
+            }
+            return false;
+        }
+
+        const GRID_SIZE = 0.01;
+        const ALLOWED_TOILET_TYPES = [
+            '男廁所',
+            '女廁所',
+            '性別友善廁所',
+            '無障礙廁所',
+            '親子友善廁所',
+            '混合廁所'
+        ];
+
+        function normalizeToiletType(rawType, rawType2, rawName) {
+            const combined = `${rawType || ''} ${rawType2 || ''} ${rawName || ''}`;
+            if (combined.includes('性別友善')) return '性別友善廁所';
+            if (combined.includes('無障礙')) return '無障礙廁所';
+            if (combined.includes('親子')) return '親子友善廁所';
+            if (combined.includes('混合')) return '混合廁所';
+            if (combined.includes('女廁')) return '女廁所';
+            if (combined.includes('男廁')) return '男廁所';
+            return rawType || rawType2 || '公廁';
+        }
+
+        function buildIndexesAndDropdowns(records) {
+            state.spatialGrid.clear();
+            state.countyToTowns.clear();
+
+            for (let i = 0; i < records.length; i++) {
+                const t = records[i];
+                t.normalizedType = normalizeToiletType(t.type, t.type2, t.name);
+                if (!t.town) t.town = extractTownFromAddress(t.address, t.county, t.areacode || '');
+                if (Number.isFinite(t.lat) && Number.isFinite(t.lng)) {
+                    const key = `${Math.floor(t.lat / GRID_SIZE)}_${Math.floor(t.lng / GRID_SIZE)}`;
+                    let bucket = state.spatialGrid.get(key);
+                    if (!bucket) { bucket = []; state.spatialGrid.set(key, bucket); }
+                    bucket.push(t);
+                }
+                if (t.county) {
+                    if (!state.countyToTowns.has(t.county)) state.countyToTowns.set(t.county, new Set());
+                    if (t.town) state.countyToTowns.get(t.county).add(t.town);
+                }
+            }
+            populateOvalSelectors();
+        }
+
+        function populateOvalSelectors() {
+            const countySelect = document.getElementById('countyFilterSelect');
+            const typeSelect = document.getElementById('typeFilterSelect');
+            const counties = Array.from(state.countyToTowns.keys()).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+            countySelect.innerHTML = `<option value="">請選擇縣市</option>` + counties.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+            typeSelect.innerHTML = `<option value="">請選擇類型</option>` + ALLOWED_TOILET_TYPES.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
+            updateTownDropdown();
+        }
+
+        function updateTownDropdown() {
+            const townSelect = document.getElementById('townFilterSelect');
+            const selectedCounty = state.countyFilter;
+            let towns = [];
+            if (selectedCounty && state.countyToTowns.has(selectedCounty)) {
+                towns = Array.from(state.countyToTowns.get(selectedCounty)).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+            } else {
+                const allTownsSet = new Set();
+                state.countyToTowns.forEach(set => set.forEach(town => allTownsSet.add(town)));
+                towns = Array.from(allTownsSet).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+            }
+            townSelect.innerHTML = `<option value="">請選擇鄉鎮</option>` + towns.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+            state.townFilter = '';
+        }
+
+        function initMap() {
+            state.map = L.map('map', { center: [23.973875, 120.982024], zoom: 8, preferCanvas: true, zoomControl: false });
+            L.control.zoom({ position: 'bottomright' }).addTo(state.map);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap | 有所味 Poogle'
+            }).addTo(state.map);
+
+            state.markerLayerGroup = L.layerGroup().addTo(state.map);
+            state.map.on('moveend', () => { renderMapMarkersInViewport(); });
+        }
+
+        function updateUserMapLayer() {
+            if (state.userLat === null || state.userLng === null || !state.map) return;
+            const latLng = [state.userLat, state.userLng];
+            if (!state.userMarker) {
+                const userIcon = L.divIcon({
+                    className: 'poogle-user-gps-icon',
+                    html: `
+                        <div class="relative flex items-center justify-center w-7 h-7">
+                            <span class="gps-pulse-ring absolute w-7 h-7 rounded-full bg-[#FF85D0]"></span>
+                            <span class="relative w-4 h-4 rounded-full bg-[#18181B] border-2 border-[#FFF57E] shadow-md"></span>
+                        </div>
+                    `,
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14]
+                });
+                state.userMarker = L.marker(latLng, { icon: userIcon, zIndexOffset: 1000 }).addTo(state.map);
+            } else {
+                state.userMarker.setLatLng(latLng);
+            }
+            state.userMarker.bindTooltip('📍 您的目前位置', { direction: 'top', offset: [0, -10] });
+
+            if (!state.userCircle100m) {
+                state.userCircle100m = L.circle(latLng, { radius: 100, color: '#18181B', weight: 2, dashArray: '6, 4', fillColor: '#FF85D0', fillOpacity: 0.22 }).addTo(state.map);
+            } else {
+                state.userCircle100m.setLatLng(latLng);
+            }
+        }
+
+        function renderMapMarkersInViewport() {
+            if (!state.map || !state.markerLayerGroup) return;
+            state.markerLayerGroup.clearLayers();
+            if (state.allToilets.length === 0) return;
+
+            const bounds = state.map.getBounds();
+            const south = bounds.getSouth(), north = bounds.getNorth(), west = bounds.getWest(), east = bounds.getEast();
+            const sourceList = state.filteredToilets.length > 0 ? state.filteredToilets : state.allToilets;
+            const inView = [];
+
+            for (let i = 0; i < sourceList.length; i++) {
+                const t = sourceList[i];
+                if (t.lat >= south && t.lat <= north && t.lng >= west && t.lng <= east) {
+                    inView.push(t);
+                    if (inView.length >= 500) break;
+                }
+            }
+
+            document.getElementById('mapViewportCount').textContent = `視野 ${inView.length} 間`;
+
+            inView.forEach(t => {
+                const isWithin100m = t.distance <= 100.0;
+                const stats = getToiletReviewStats(t.name);
+                const bg = isWithin100m ? '#FF85D0' : (stats ? '#3CE6B0' : '#72D0FF');
+
+                const icon = L.divIcon({
+                    className: 'poogle-toilet-marker',
+                    html: `<div style="width:30px;height:30px;border-radius:9999px;background:${bg};border:2px solid #18181B;box-shadow:0 3px 0 #18181B;display:flex;align-items:center;justify-content:center;color:#18181B;font-size:13px;"><i class="fa-solid fa-restroom"></i></div>`,
+                    iconSize: [30, 30], iconAnchor: [15, 15]
+                });
+
+                const marker = L.marker([t.lat, t.lng], { icon });
+                const distLabel = Number.isFinite(t.distance) ? (t.distance < 1000 ? `${t.distance.toFixed(1)}m` : `${(t.distance / 1000).toFixed(2)}km`) : '';
+                const gmapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.lat + ',' + t.lng)}`;
+                const displayType = t.normalizedType || t.type;
+
+                const ratingSummaryHtml = stats
+                    ? `<div class="p-2 rounded-xl bg-[#FFF57E]/60 border border-[#18181B] text-[11px] space-y-0.5">
+                           <div class="font-extrabold text-black">⭐ 網友平均 ${stats.avgOverall} 星（${stats.count} 則評鑑）</div>
+                           <div class="text-[10px] text-neutral-700">空間 ${stats.avgSpace}・氣味 ${stats.avgSmell}・照明 ${stats.avgLighting}・潔淨 ${stats.avgCleanliness}</div>
+                       </div>`
+                    : `<div class="text-[11px] text-neutral-500">尚無網友評鑑紀錄</div>`;
+
+                marker.bindPopup(`
+                    <div class="w-64 space-y-1.5">
+                        <div class="flex items-center gap-1 flex-wrap">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#72D0FF] border border-[#18181B] text-black">${escapeHtml(displayType)}</span>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFF57E] border border-[#18181B] text-black">${escapeHtml(t.grade)}</span>
+                        </div>
+                        <div class="font-extrabold text-black text-xs">${escapeHtml(t.name)}</div>
+                        <div class="text-[11px] text-neutral-700">${escapeHtml(t.address)}</div>
+                        ${ratingSummaryHtml}
+                        ${distLabel ? `<div class="text-[11px] font-bold text-[#18181B]">距離目前位置：${distLabel}</div>` : ''}
+                        <div class="pt-1 flex items-center gap-1.5">
+                            <button onclick="window.openToiletReviewsModal('${t.key}')" class="flex-1 py-1.5 px-2.5 rounded-full bg-[#3CE6B0] border border-[#18181B] text-black font-extrabold text-[11px] text-center hover:bg-[#2fd49f] cursor-pointer">
+                                <i class="fa-solid fa-comments mr-1"></i>查看評論(${stats ? stats.count : 0})
+                            </button>
+                            <a href="${gmapUrl}" target="_blank" rel="noopener noreferrer" class="py-1.5 px-2.5 rounded-full bg-[#FFF57E] border border-[#18181B] text-black font-extrabold text-[11px] text-center no-underline hover:bg-[#f7eb5e]">
+                                導航
+                            </a>
+                        </div>
+                    </div>
+                `);
+                state.markerLayerGroup.addLayer(marker);
+            });
+        }
+
+        function setUserPosition(lat, lng, accuracy = 5, panMap = false) {
+            state.userLat = lat; state.userLng = lng; state.userAccuracy = accuracy;
+            const gpsText = document.getElementById('gpsText');
+            if (gpsText) gpsText.innerHTML = `📍 目前定位：(${lat.toFixed(5)}, ${lng.toFixed(5)}) 精度 ±${Math.round(accuracy)}m`;
+            updateUserMapLayer();
+            if (panMap && state.map) state.map.setView([lat, lng], 17);
+            refreshDistancesAndRender();
+        }
+
+        function triggerUserGeolocation() {
+            if (!navigator.geolocation) {
+                showToast('您的瀏覽器不支援自動定位', 'error');
+                return;
+            }
+            showToast('正在偵測您附近 100m 內的公廁...', 'info');
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    setUserPosition(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy, true);
+                    showToast('定位成功！已顯示附近 100m 內的公廁', 'success');
+                },
+                () => {
+                    showToast('無法取得 GPS 定位，請確認已開啟定位權限，或點擊「全部名冊」查看所有公廁', 'error');
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+
+        function refreshDistancesAndRender() {
+            if (state.allToilets.length === 0) return;
+            const q = state.searchQuery.trim().toLowerCase();
+            const countyF = state.countyFilter, townF = state.townFilter, typeF = state.typeFilter, radiusF = state.radiusFilter;
+            const results = [];
+            let countWithin100m = 0;
+
+            for (let i = 0; i < state.allToilets.length; i++) {
+                const t = state.allToilets[i];
+                t.distance = calculateDistanceMeters(state.userLat, state.userLng, t.lat, t.lng);
+                if (t.distance <= 100.0) countWithin100m++;
+
+                if (radiusF > 0 && t.distance > radiusF) continue;
+                if (countyF && t.county !== countyF) continue;
+                if (townF && t.town !== townF && !t.address.includes(townF)) continue;
+                if (typeF && t.normalizedType !== typeF) continue;
+                if (state.onlyReviewed && !state.reviewsByToiletName.has(t.name.trim())) continue;
+                if (q && !t.name.toLowerCase().includes(q) && !t.address.toLowerCase().includes(q)) continue;
+                results.push(t);
+            }
+
+            if (state.userLat !== null && state.userLng !== null) {
+                results.sort((a, b) => a.distance - b.distance);
+            }
+
+            state.filteredToilets = results;
+            state.currentPage = 1;
+            const countBadge = document.getElementById('nearby100mBadge');
+            if (countBadge) countBadge.textContent = `附近 100m：${countWithin100m} 間`;
+
+            renderToiletList();
+            renderMapMarkersInViewport();
+        }
+
+        function renderToiletList() {
+            const container = document.getElementById('toiletListContainer');
+            const countBadge = document.getElementById('filteredCountBadge');
+            const paginationBar = document.getElementById('listPaginationBar');
+            const paginationInfo = document.getElementById('paginationInfoText');
+            const prevBtn = document.getElementById('prevPageBtn');
+            const nextBtn = document.getElementById('nextPageBtn');
+            if (!container || !countBadge) return;
+
+            countBadge.textContent = `${state.filteredToilets.length.toLocaleString()} 間`;
+            if (state.filteredToilets.length === 0) {
+                if (paginationBar) paginationBar.classList.add('hidden');
+                if (state.allToilets.length === 0) {
+                    container.innerHTML = `
+                        <div class="p-6 text-center text-xs font-bold text-black space-y-2">
+                            <p class="text-sm font-extrabold">尚未偵測到同資料夾內的《全國公廁建檔資料.csv》</p>
+                            <p class="text-neutral-600 font-normal leading-relaxed">
+                                1. 請確認 <code>全國公廁建檔資料.csv</code> 與 <code>map.html</code> 放在同一個資料夾<br>
+                                2. 在 VS Code 按右鍵選擇 <strong>Open with Live Server</strong> 即可 100% 自動匯入
+                            </p>
+                        </div>`;
+                } else if (state.radiusFilter > 0 && state.userLat === null) {
+                    container.innerHTML = `
+                        <div class="p-6 text-center text-xs font-bold text-black space-y-2">
+                            <p class="text-sm font-extrabold"><i class="fa-solid fa-location-crosshairs text-[#1D9BF0] mr-1"></i>正在定位您附近 ${state.radiusFilter}m 內的公廁...</p>
+                            <p class="text-neutral-600 font-normal leading-relaxed">請允許瀏覽器取得您的位置權限，或點擊上方「全部名冊」直接瀏覽全國公廁</p>
+                        </div>`;
+                } else {
+                    container.innerHTML = `<div class="p-6 text-center text-sm font-extrabold text-black">目前您附近 ${state.radiusFilter ? state.radiusFilter + 'm 內' : '此篩選條件下'}沒有符合的公廁</div>`;
+                }
+                return;
+            }
+
+            const total = state.filteredToilets.length;
+            const totalPages = Math.ceil(total / state.pageSize) || 1;
+            if (state.currentPage > totalPages) state.currentPage = totalPages;
+
+            const startIdx = (state.currentPage - 1) * state.pageSize;
+            const endIdx = Math.min(startIdx + state.pageSize, total);
+            const pageItems = state.filteredToilets.slice(startIdx, endIdx);
+
+            if (paginationBar && paginationInfo && prevBtn && nextBtn) {
+                paginationBar.classList.remove('hidden');
+                paginationBar.classList.add('flex');
+                paginationInfo.textContent = `顯示第 ${(startIdx + 1).toLocaleString()} - ${endIdx.toLocaleString()} 筆（共 ${total.toLocaleString()} 間）`;
+                prevBtn.disabled = state.currentPage <= 1;
+                nextBtn.disabled = state.currentPage >= totalPages;
+            }
+
+            container.innerHTML = pageItems.map(t => {
+                const isWithin100m = t.distance <= 100.0;
+                const distText = Number.isFinite(t.distance) ? (t.distance < 1000 ? `${t.distance.toFixed(1)}m` : `${(t.distance / 1000).toFixed(2)}km`) : null;
+                const gmapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.lat + ',' + t.lng)}`;
+                const displayType = t.normalizedType || t.type;
+                const stats = getToiletReviewStats(t.name);
+
+                const cloudBadgeHtml = stats
+                    ? `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-[#3CE6B0] border border-[#18181B] text-black">
+                           ⭐ ${stats.avgOverall} (${stats.count}則評論)
+                       </span>`
+                    : `<span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white border border-[#18181B]/40 text-neutral-600">
+                           尚無網友評論
+                       </span>`;
+
+                const latestCommentSnippet = (stats && stats.reviews[0] && stats.reviews[0].comment)
+                    ? `<div class="text-[11px] bg-white/90 border border-[#18181B]/20 rounded-xl px-2.5 py-1.5 text-neutral-800 truncate">
+                           💬 最新留言：「${escapeHtml(stats.reviews[0].comment)}」
+                       </div>`
+                    : '';
+
+                return `
+                    <div class="p-3 rounded-2xl border-[1.5px] border-[#18181B] ${isWithin100m ? 'bg-[#FFF57E]/45' : 'bg-[#FCF6E8]'} transition space-y-1.5">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1 flex-wrap">
+                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#72D0FF] border border-[#18181B] text-black">${escapeHtml(displayType)}</span>
+                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFF57E] border border-[#18181B] text-black">${escapeHtml(t.grade)}</span>
+                                    ${cloudBadgeHtml}
+                                </div>
+                                <h4 class="font-extrabold text-black text-sm mt-1 leading-snug break-words">${escapeHtml(t.name)}</h4>
+                                <p class="text-xs text-neutral-700 mt-0.5 break-words"><i class="fa-solid fa-location-dot text-[#FF85D0] mr-1"></i>${escapeHtml(t.address)}</p>
+                            </div>
+                            ${distText ? `
+                            <div class="text-right shrink-0">
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-extrabold border-[1.5px] border-[#18181B] ${isWithin100m ? 'bg-[#FF85D0] text-black' : 'bg-white text-neutral-800'}">
+                                    <i class="fa-solid fa-location-arrow"></i>${distText}
+                                </span>
+                            </div>` : ''}
+                        </div>
+                        ${latestCommentSnippet}
+                        <div class="flex items-center justify-between text-[11px] text-neutral-600 pt-1 border-t border-black/10">
+                            <span class="truncate max-w-[42%]">管理：${escapeHtml(t.exec || '各管理單位')}</span>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <button onclick="window.openToiletReviewsModal('${t.key}')" class="poogle-pill-btn py-1 px-2.5 rounded-full ${stats ? 'bg-[#3CE6B0]' : 'bg-white'} text-black font-bold text-xs flex items-center gap-1 cursor-pointer" title="查看網友實地評分與留言">
+                                    <i class="fa-solid fa-comments"></i><span>評論(${stats ? stats.count : 0})</span>
+                                </button>
+                                <button onclick="window.focusToiletOnMap('${t.key}')" class="poogle-pill-btn py-1 px-2.5 rounded-full bg-[#72D0FF] text-black font-bold text-xs flex items-center gap-1 cursor-pointer" title="在地圖上查看位置">
+                                    <i class="fa-solid fa-map-pin"></i><span>地點</span>
+                                </button>
+                                <a href="${gmapUrl}" target="_blank" rel="noopener noreferrer" class="poogle-pill-btn py-1 px-2.5 rounded-full bg-white text-black font-bold text-xs flex items-center gap-1 no-underline" title="開啟 Google Maps 導航">
+                                    <i class="fa-solid fa-diamond-turn-right"></i><span>導航</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.focusToiletOnMap = function(toiletKey) {
+            const toilet = state.allToilets.find(t => t.key === toiletKey);
+            if (!toilet || !state.map) return;
+            state.map.setView([toilet.lat, toilet.lng], 18);
+            renderMapMarkersInViewport();
+        };
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            initMap();
+            startRealtimeCloudReviewsListener();
+
+            document.getElementById('closeReviewsModalBtn').addEventListener('click', () => {
+                document.getElementById('toiletReviewsModal').classList.add('hidden');
+            });
+            document.getElementById('toiletReviewsModal').addEventListener('click', (e) => {
+                if (e.target.id === 'toiletReviewsModal') {
+                    document.getElementById('toiletReviewsModal').classList.add('hidden');
+                }
+            });
+
+            // 1. 先載入快取資料加速呈現
+            const cached = await loadDatasetFromIDB();
+            if (cached && cached.records && cached.records.length > 0) {
+                state.allToilets = cached.records;
+                buildIndexesAndDropdowns(state.allToilets);
+                document.getElementById('datasetDot').className = 'w-2 h-2 rounded-full bg-emerald-500';
+                document.getElementById('datasetCountText').innerHTML = `已載入 <strong>${state.allToilets.length.toLocaleString()}</strong> 間`;
+                document.getElementById('gpsText').textContent = `✅ 已完整載入 ${state.allToilets.length.toLocaleString()} 筆公廁資料！點擊「評論」即可查看各公廁環境現況與留言`;
+                refreshDistancesAndRender();
+            }
+
+            // 2. 自動從同資料夾讀取 ./全國公廁建檔資料.csv
+            const autoLoaded = await autoFetchSameFolderCSV(false);
+            if (!autoLoaded && (!cached || !cached.records || cached.records.length === 0)) {
+                document.getElementById('datasetDot').className = 'w-2 h-2 rounded-full bg-rose-500';
+                document.getElementById('datasetCountText').textContent = '等待匯入 CSV';
+                renderToiletList();
+            }
+
+            // 進入頁面預設自動啟動定位以顯示附近 100m 內的公廁
+            triggerUserGeolocation();
+
+            document.getElementById('reloadSameFolderCsvBtn').addEventListener('click', async () => {
+                const ok = await autoFetchSameFolderCSV(true);
+                if (!ok) {
+                    showToast('無法自動讀取同資料夾 CSV，請確認透過 VS Code Live Server 開啟且檔名為 全國公廁建檔資料.csv', 'error');
+                }
+            });
+
+            document.getElementById('prevPageBtn').addEventListener('click', () => {
+                if (state.currentPage > 1) {
+                    state.currentPage--;
+                    renderToiletList();
+                    document.getElementById('toiletListContainer').scrollTop = 0;
+                }
+            });
+            document.getElementById('nextPageBtn').addEventListener('click', () => {
+                const totalPages = Math.ceil(state.filteredToilets.length / state.pageSize) || 1;
+                if (state.currentPage < totalPages) {
+                    state.currentPage++;
+                    renderToiletList();
+                    document.getElementById('toiletListContainer').scrollTop = 0;
+                }
+            });
+
+            document.getElementById('countyFilterSelect').addEventListener('change', (e) => {
+                state.countyFilter = e.target.value;
+                updateTownDropdown();
+                refreshDistancesAndRender();
+                if (state.countyFilter && state.filteredToilets.length > 0 && state.map) {
+                    state.map.setView([state.filteredToilets[0].lat, state.filteredToilets[0].lng], 13);
+                }
+            });
+            document.getElementById('townFilterSelect').addEventListener('change', (e) => {
+                state.townFilter = e.target.value;
+                refreshDistancesAndRender();
+                if (state.townFilter && state.filteredToilets.length > 0 && state.map) {
+                    state.map.setView([state.filteredToilets[0].lat, state.filteredToilets[0].lng], 15);
+                }
+            });
+            document.getElementById('typeFilterSelect').addEventListener('change', (e) => {
+                state.typeFilter = e.target.value;
+                refreshDistancesAndRender();
+            });
+
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                state.searchQuery = e.target.value;
+                document.getElementById('clearSearchBtn').classList.toggle('hidden', !state.searchQuery);
+                refreshDistancesAndRender();
+            });
+            document.getElementById('clearSearchBtn').addEventListener('click', () => {
+                document.getElementById('searchInput').value = '';
+                state.searchQuery = '';
+                document.getElementById('clearSearchBtn').classList.add('hidden');
+                refreshDistancesAndRender();
+            });
+
+            document.getElementById('locateMeBtn').addEventListener('click', triggerUserGeolocation);
+            document.getElementById('onlyReviewedToggle').addEventListener('change', (e) => {
+                state.onlyReviewed = e.target.checked;
+                refreshDistancesAndRender();
+            });
+
+            document.querySelectorAll('.radius-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.radius-btn').forEach(b => {
+                        b.className = 'radius-btn px-2 py-0.5 rounded-full font-medium text-neutral-700 hover:text-black transition';
+                    });
+                    btn.className = 'radius-btn px-2.5 py-0.5 rounded-full font-bold bg-[#FFF57E] text-black border border-[#18181B] transition';
+                    state.radiusFilter = parseInt(btn.getAttribute('data-radius'), 10);
+                    refreshDistancesAndRender();
+                });
+            });
+        });
+    </script>
+</body>
+</html>
