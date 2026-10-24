@@ -99,14 +99,14 @@
             <div class="w-16 h-16 rounded-full bg-[#FF85D0]/30 border-2 border-[#1E2270] mx-auto flex items-center justify-center text-2xl text-[#1E2270]">
                 <i class="fa-solid fa-location-crosshairs"></i>
             </div>
-            <h2 class="text-2xl sm:text-3xl font-extrabold text-black">定位失敗</h2>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-black">沒有可評鑑的公廁</h2>
             <p id="locateFailedReason" class="text-sm sm:text-base text-neutral-700 leading-relaxed">
-                無法偵測到您目前所在地 100 公尺內的公廁，或瀏覽器未授權 GPS 定位權限。
+                目前在您所在地 100 公尺內沒有偵測到可評鑑的公廁。
             </p>
 
             <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                 <button id="retryLocateBtn" type="button" class="poogle-pill-btn w-full sm:w-auto px-6 py-2.5 rounded-full bg-[#72D0FF] text-black font-bold text-sm">
-                    <i class="fa-solid fa-rotate-right mr-1.5"></i>重新網路定位
+                    <i class="fa-solid fa-rotate-right mr-1.5"></i>重新定位
                 </button>
                 <button id="demoNearestToiletBtn" type="button" class="poogle-pill-btn w-full sm:w-auto px-6 py-2.5 rounded-full bg-[#FFF57E] text-black font-bold text-sm" title="測試模式下直接載入離您最近的一間真實公廁進行評鑑">
                     <i class="fa-solid fa-wand-magic-sparkles mr-1.5"></i>帶入最近公廁(測試評鑑)
@@ -327,19 +327,19 @@
 
                     <div class="w-fit mx-auto space-y-6">
                         <div class="flex items-center justify-end">
-                            <span class="w-[68px] sm:w-[76px] text-[16px] sm:text-[18px] font-normal text-black text-right shrink-0 mr-4 sm:mr-6">空間大小</span>
+                            <span class="w-[88px] sm:w-[98px] whitespace-nowrap text-[16px] sm:text-[18px] font-normal text-black text-right shrink-0 mr-4 sm:mr-6">空間寬敞度</span>
                             <div class="flex items-center gap-2.5 sm:gap-3.5 shrink-0" data-rating-row="space"></div>
                         </div>
                         <div class="flex items-center justify-end">
-                            <span class="w-[68px] sm:w-[76px] text-[16px] sm:text-[18px] font-normal text-black text-right shrink-0 mr-4 sm:mr-6">氣味</span>
+                            <span class="w-[88px] sm:w-[98px] whitespace-nowrap text-[16px] sm:text-[18px] font-normal text-black text-right shrink-0 mr-4 sm:mr-6">空氣清新度</span>
                             <div class="flex items-center gap-2.5 sm:gap-3.5 shrink-0" data-rating-row="smell"></div>
                         </div>
                         <div class="flex items-center justify-end">
-                            <span class="w-[68px] sm:w-[76px] text-[16px] sm:text-[18px] font-normal text-black text-right shrink-0 mr-4 sm:mr-6">照明</span>
+                            <span class="w-[88px] sm:w-[98px] whitespace-nowrap text-[16px] sm:text-[18px] font-normal text-black text-right shrink-0 mr-4 sm:mr-6">照明舒適度</span>
                             <div class="flex items-center gap-2.5 sm:gap-3.5 shrink-0" data-rating-row="lighting"></div>
                         </div>
                         <div class="flex items-center justify-end">
-                            <span class="w-[68px] sm:w-[76px] text-[16px] sm:text-[18px] font-normal text-black text-right shrink-0 mr-4 sm:mr-6">潔淨度</span>
+                            <span class="w-[88px] sm:w-[98px] whitespace-nowrap text-[16px] sm:text-[18px] font-normal text-black text-right shrink-0 mr-4 sm:mr-6">環境潔淨度</span>
                             <div class="flex items-center gap-2.5 sm:gap-3.5 shrink-0" data-rating-row="cleanliness"></div>
                         </div>
                     </div>
@@ -431,9 +431,6 @@
             <div class="text-center mt-2 mb-8 space-y-2">
                 <h1 class="text-4xl sm:text-5xl font-bold text-black tracking-wide">回報成功!</h1>
                 <p class="text-sm sm:text-base text-black font-normal">感謝你的回饋，祝你天天如廁順利</p>
-                <p id="cloudSyncStatusText" class="text-xs font-bold text-[#1E2270] bg-[#3CE6B0]/30 border border-[#1E2270] inline-block px-3.5 py-1 rounded-full">
-                    <i class="fa-solid fa-cloud-arrow-up mr-1"></i>已同步更新至雲端公開評論資料庫
-                </p>
             </div>
 
             <!-- Final Synthesized Card -->
@@ -540,11 +537,11 @@
 
             <div class="flex flex-row items-center justify-center gap-4 sm:gap-8 mt-7 sm:mt-9 w-full">
                 <button id="confirmLeaveHomeBtn" type="button"
-                        class="w-[120px] sm:w-[136px] h-[36px] sm:h-[42px] rounded-full bg-[#CCCCCC] hover:bg-[#bdbdbd] text-black text-xs sm:text-[15px] font-normal flex items-center justify-center transition-transform hover:scale-[1.03] focus:outline-none">
+                        class="w-[120px] sm:w-[136px] h-[36px] sm:h-[42px] rounded-full bg-transparent border-[1.5px] border-[#1E2270] text-black text-xs sm:text-[15px] font-normal flex items-center justify-center transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_4px_0_#1E2270] focus:outline-none">
                     返回首頁
                 </button>
                 <button id="cancelLeaveEditBtn" type="button"
-                        class="w-[120px] sm:w-[136px] h-[36px] sm:h-[42px] rounded-full bg-[#80FF72] hover:bg-[#6ef560] text-black text-xs sm:text-[15px] font-normal flex items-center justify-center transition-transform hover:scale-[1.03] focus:outline-none">
+                        class="w-[120px] sm:w-[136px] h-[36px] sm:h-[42px] rounded-full bg-[#80FF72] hover:bg-[#6ef560] border-[1.5px] border-[#1E2270] text-black text-xs sm:text-[15px] font-normal flex items-center justify-center transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_4px_0_#1E2270] focus:outline-none">
                     繼續編輯
                 </button>
             </div>
@@ -1078,11 +1075,11 @@
                             selectToiletForRating(nearest);
                         } else if (nearest) {
                             locatingStage.classList.add('hidden');
-                            failedReason.innerHTML = `定位失敗：您目前距離最近的公廁「<strong>${escapeHtml(nearest.name)}</strong>」約 <strong>${Math.round(nearest.distance)} 公尺</strong>，需在公廁 <strong>100 公尺內</strong>才可進行實地評鑑！`;
+                            failedReason.innerHTML = `您目前距離最近的公廁「<strong>${escapeHtml(nearest.name)}</strong>」約 <strong>${Math.round(nearest.distance)} 公尺</strong>，需在公廁 <strong>100 公尺內</strong>才可進行實地評鑑！`;
                             locateFailedStage.classList.remove('hidden');
                         } else {
                             locatingStage.classList.add('hidden');
-                            failedReason.textContent = '定位失敗：尚未讀取到《全國公廁建檔資料.csv》，請確認 CSV 檔案位於同一資料夾內。';
+                            failedReason.textContent = '目前附近 100 公尺內沒有偵測到可評鑑的公廁。';
                             locateFailedStage.classList.remove('hidden');
                         }
                     }, 650);
@@ -1090,7 +1087,7 @@
                 (err) => {
                     setTimeout(() => {
                         locatingStage.classList.add('hidden');
-                        failedReason.textContent = '定位失敗：無法取得您的網路定位訊號，請確認已允許瀏覽器定位權限，或點擊下方按鈕測試評鑑功能。';
+                        failedReason.textContent = '目前附近 100 公尺內沒有偵測到可評鑑的公廁，請確認已開啟位置權限或點擊下方按鈕重新定位。';
                         locateFailedStage.classList.remove('hidden');
                     }, 900);
                 },
@@ -1365,15 +1362,6 @@
                     // 記錄此公廁已完成評鑑的時間戳記，啟動 5 分鐘冷卻限制
                     setToiletCooldownTimestamp(toilet);
 
-                    const syncBadge = document.getElementById('cloudSyncStatusText');
-                    if (syncBadge) {
-                        if (syncedToCloud) {
-                            syncBadge.innerHTML = `<i class="fa-solid fa-cloud-arrow-up mr-1"></i>已即時同步至 Firebase 雲端公開評論資料庫`;
-                        } else {
-                            syncBadge.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i>已儲存評鑑紀錄並於背景同步雲端資料庫`;
-                        }
-                    }
-
                     const sourceSvg = document.getElementById('toiletCardSvg');
                     const clonedSvg = sourceSvg.cloneNode(true);
                     clonedSvg.removeAttribute('id');
@@ -1386,7 +1374,10 @@
                     finalContainer.innerHTML = '';
                     finalContainer.appendChild(clonedSvg);
 
-                    document.getElementById('finalCardToiletName').textContent = toilet.name || '廁所名稱';
+                    const finalNameEl = document.getElementById('finalCardToiletName');
+                    const formattedNameLines = splitToiletNameAvoidSingleLastChar(toilet.name || '廁所名稱', 8);
+                    finalNameEl.innerHTML = formattedNameLines.map(line => `<span class="block whitespace-nowrap">${escapeHtml(line)}</span>`).join('');
+
                     const now = new Date();
                     const yyyy = now.getFullYear();
                     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -1414,8 +1405,24 @@
                 }
             });
 
-            // Helper to wrap text onto Canvas
-            function wrapCanvasText(ctx, text, maxWidth) {
+            // 將公廁名稱分行，若最後一行只有 1 個字則自動併入上一行
+            function splitToiletNameAvoidSingleLastChar(text, maxCharsPerLine = 8) {
+                const chars = Array.from((text || '').trim());
+                if (chars.length <= maxCharsPerLine + 1) {
+                    return [chars.join('')];
+                }
+                const lines = [];
+                for (let i = 0; i < chars.length; i += maxCharsPerLine) {
+                    lines.push(chars.slice(i, i + maxCharsPerLine).join(''));
+                }
+                if (lines.length > 1 && Array.from(lines[lines.length - 1]).length === 1) {
+                    lines[lines.length - 2] += lines.pop();
+                }
+                return lines;
+            }
+
+            // Helper to wrap text onto Canvas (with option to prevent a single orphan character on the last line)
+            function wrapCanvasText(ctx, text, maxWidth, avoidSingleLastChar = false) {
                 const chars = Array.from(text);
                 const lines = [];
                 let currentLine = '';
@@ -1429,6 +1436,9 @@
                     }
                 }
                 if (currentLine) lines.push(currentLine);
+                if (avoidSingleLastChar && lines.length > 1 && Array.from(lines[lines.length - 1]).length === 1) {
+                    lines[lines.length - 2] += lines.pop();
+                }
                 return lines;
             }
 
@@ -1470,7 +1480,7 @@
                         URL.revokeObjectURL(url);
 
                         // 2. Draw tilted & center-aligned Toilet Name + Date on top-left
-                        const toiletName = document.getElementById('finalCardToiletName').textContent.trim() || '廁所名稱';
+                        const toiletName = (state.currentToilet?.name || document.getElementById('finalCardToiletName').textContent || '廁所名稱').trim();
                         const dateStr = document.getElementById('finalCardDate').textContent.trim() || '';
 
                         ctx.save();
@@ -1480,9 +1490,10 @@
                         ctx.textBaseline = 'middle';
                         ctx.fillStyle = '#000000';
 
-                        const nameFontSize = toiletName.length > 9 ? 42 : 52;
+                        const nameLines = splitToiletNameAvoidSingleLastChar(toiletName, 8);
+                        const longestLineLen = Math.max(...nameLines.map(l => Array.from(l).length), 1);
+                        const nameFontSize = longestLineLen >= 9 ? 40 : (toiletName.length > 8 ? 44 : 52);
                         ctx.font = `bold ${nameFontSize}px "Inter", "Noto Sans TC", sans-serif`;
-                        const nameLines = wrapCanvasText(ctx, toiletName, 420);
                         const nameLineHeight = nameFontSize * 1.18;
                         const totalNameHeight = nameLines.length * nameLineHeight;
                         let startY = -(totalNameHeight / 2);

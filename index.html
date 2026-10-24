@@ -348,12 +348,12 @@
 
     <!-- Locate Method Popup Modal -->
     <div id="locateMethodModal" class="hidden fixed inset-0 z-50 bg-black/25 backdrop-blur-[2px] flex items-center justify-center p-4 transition-opacity">
-        <div class="bg-white rounded-[28px] max-w-2xl w-full sm:w-[640px] sm:h-[400px] border-2 border-[#1E2270]/15 shadow-2xl relative flex flex-col items-center justify-center p-8 animate-[fadeIn_0.2s_ease-out]">
-            <button id="closeLocateMethodBtn" type="button" class="absolute top-6 right-7 text-black hover:scale-110 transition-transform text-2xl focus:outline-none" aria-label="關閉">
+        <div class="bg-white rounded-[28px] max-w-md w-full sm:w-[440px] sm:h-[340px] border-2 border-[#1E2270] shadow-[0_8px_0_#1E2270] relative flex flex-col items-center justify-center p-8 animate-[fadeIn_0.2s_ease-out]">
+            <button id="closeLocateMethodBtn" type="button" class="poogle-pill-btn absolute top-5 right-5 w-8 h-8 rounded-full bg-white text-black flex items-center justify-center focus:outline-none" aria-label="關閉">
                 <i class="fa-solid fa-xmark"></i>
             </button>
 
-            <div class="grid grid-cols-2 gap-10 sm:gap-20 w-full max-w-md mx-auto my-auto">
+            <div class="flex items-center justify-center w-full my-auto">
                 <button id="startNetworkLocateBtn" type="button" class="group flex flex-col items-center justify-center gap-5 focus:outline-none">
                     <div class="w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center rounded-3xl group-hover:scale-105 group-hover:bg-[#FCF6E8] transition-all p-2">
                         <svg viewBox="0 0 120 120" class="w-full h-full">
@@ -364,26 +364,6 @@
                         </svg>
                     </div>
                     <span class="text-lg sm:text-xl font-medium text-black tracking-wide group-hover:text-[#1E2270]">網路定位</span>
-                </button>
-
-                <button id="startQrLocateBtn" type="button" class="group flex flex-col items-center justify-center gap-5 focus:outline-none">
-                    <div class="w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center rounded-3xl group-hover:scale-105 group-hover:bg-[#FCF6E8] transition-all p-2">
-                        <svg viewBox="0 0 120 120" class="w-full h-full">
-                            <rect x="14" y="14" width="36" height="36" fill="none" stroke="#000000" stroke-width="8" />
-                            <rect x="26" y="26" width="12" height="12" fill="#000000" />
-                            <rect x="70" y="14" width="36" height="36" fill="none" stroke="#000000" stroke-width="8" />
-                            <rect x="82" y="26" width="12" height="12" fill="#000000" />
-                            <rect x="14" y="70" width="36" height="36" fill="none" stroke="#000000" stroke-width="8" />
-                            <rect x="26" y="82" width="12" height="12" fill="#000000" />
-                            <rect x="68" y="68" width="10" height="10" fill="#000000" />
-                            <rect x="84" y="68" width="10" height="10" fill="#000000" />
-                            <rect x="100" y="68" width="10" height="10" fill="#000000" />
-                            <rect x="68" y="84" width="10" height="10" fill="#000000" />
-                            <rect x="100" y="84" width="10" height="26" fill="#000000" />
-                            <rect x="68" y="100" width="24" height="10" fill="#000000" />
-                        </svg>
-                    </div>
-                    <span class="text-lg sm:text-xl font-medium text-black tracking-wide group-hover:text-[#1E2270]">掃描QR code</span>
                 </button>
             </div>
         </div>
@@ -746,10 +726,6 @@
 
             document.getElementById('startNetworkLocateBtn').addEventListener('click', () => {
                 window.location.href = './rating.html?mode=network';
-            });
-
-            document.getElementById('startQrLocateBtn').addEventListener('click', () => {
-                window.location.href = './rating.html?mode=qrcode';
             });
 
             // 3. 小怪圖鑑：播放音效並顯示「⚠️施工中⚠️」彈窗

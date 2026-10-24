@@ -181,10 +181,19 @@
         <!-- Toilet List Box -->
         <div class="flex-1 min-h-0 flex flex-col bg-white/80 border-[1.5px] border-[#18181B] rounded-3xl overflow-hidden shadow-sm mt-1">
             <div class="px-4 py-2 bg-[#FFF57E]/70 border-b-[1.5px] border-[#18181B] flex items-center justify-between gap-2 text-xs shrink-0">
-                <div class="flex items-center gap-1.5 min-w-0">
+                <div class="flex items-center gap-1.5 min-w-0 flex-wrap">
                     <i id="gpsIcon" class="fa-solid fa-location-dot text-black"></i>
-                    <span id="listHeaderTitle" class="font-bold text-black truncate">全國公廁建檔清單</span>
+                    <span id="listHeaderTitle" class="font-bold text-black truncate">全國公廁列表</span>
                     <span id="filteredCountBadge" class="px-2 py-0.5 rounded-full bg-white border border-[#18181B] text-black font-bold text-[11px] shrink-0">0 間</span>
+                    <div class="relative inline-flex items-center shrink-0">
+                        <select id="ratingSortSelect" aria-label="評價分數排序"
+                                class="poogle-pill-btn appearance-none pl-2.5 pr-6 py-0.5 rounded-full bg-[#72D0FF] hover:bg-[#5bc6ff] text-black font-bold text-[11px] cursor-pointer focus:outline-none">
+                            <option value="default">評價分數</option>
+                            <option value="desc">由高到低</option>
+                            <option value="asc">由低到高</option>
+                        </select>
+                        <i class="fa-solid fa-caret-down text-[10px] text-black pointer-events-none absolute right-2"></i>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2 shrink-0 text-[11px]">
                     <span id="nearby100mBadge" class="px-2 py-0.5 rounded-full bg-[#FF85D0] border border-[#18181B] text-black font-bold">
@@ -353,6 +362,7 @@
             countyFilter: '',
             townFilter: '',
             typeFilter: '',
+            ratingSort: 'default',
             radiusFilter: 100,
             currentPage: 1,
             pageSize: 80,
@@ -1154,39 +1164,85 @@
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
                     setUserPosition(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy, true);
-                    showToast('定位成功！已顯示附近 100m 內的公廁', 'success');
+                    showToast('定位成功！已列出您附近 100m 內的公廁', 'success');
                 },
-                () => {
-                    showToast('無法取得 GPS 定位，請確認已開啟定位權限，或點擊「全部名冊」查看所有公廁', 'error');
+                (err) => {
+                    console.warn('Geolocation error:', err);
+                    const gpsText = document.getElementById('gpsText');
+                    if (gpsText && state.allToilets.length > 0) {
+                        gpsText.textContent = '⚠️ 尚未取得定位權限，可點擊上方「全部名冊」或選擇縣市瀏覽公廁';
+                    }
+                    refreshDistancesAndRender();
                 },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
             );
         }
 
         function refreshDistancesAndRender() {
-            if (state.allToilets.length === 0) return;
             const q = state.searchQuery.trim().toLowerCase();
-            const countyF = state.countyFilter, townF = state.townFilter, typeF = state.typeFilter, radiusF = state.radiusFilter;
+            const hasManualSearchOrArea = Boolean(state.countyFilter || state.townFilter || q);
             const results = [];
             let countWithin100m = 0;
 
             for (let i = 0; i < state.allToilets.length; i++) {
                 const t = state.allToilets[i];
-                t.distance = calculateDistanceMeters(state.userLat, state.userLng, t.lat, t.lng);
-                if (t.distance <= 100.0) countWithin100m++;
+                if (state.userLat !== null && state.userLng !== null) {
+                    t.distance = calculateDistanceMeters(state.userLat, state.userLng, t.lat, t.lng);
+                    if (t.distance <= 100.0) countWithin100m++;
+                } else {
+                    t.distance = Infinity;
+                }
 
-                if (radiusF > 0 && t.distance > radiusF) continue;
-                if (countyF && t.county !== countyF) continue;
-                if (townF && t.town !== townF && !t.address.includes(townF)) continue;
-                if (typeF && t.normalizedType !== typeF) continue;
-                if (state.onlyReviewed && !state.reviewsByToiletName.has(t.name.trim())) continue;
-                if (q && !t.name.toLowerCase().includes(q) && !t.address.toLowerCase().includes(q)) continue;
+                if (state.countyFilter && t.county !== state.countyFilter) continue;
+                if (state.townFilter && t.town !== state.townFilter) continue;
+                if (state.typeFilter && (t.normalizedType || t.type) !== state.typeFilter) continue;
+
+                const stats = getToiletReviewStats(t.name);
+                if (state.onlyReviewed && (!stats || stats.count === 0)) continue;
+
+                if (q) {
+                    const matchName = (t.name || '').toLowerCase().includes(q);
+                    const matchAddr = (t.address || '').toLowerCase().includes(q);
+                    if (!matchName && !matchAddr) continue;
+                }
+
+                if (state.radiusFilter > 0 && !hasManualSearchOrArea) {
+                    if (state.userLat === null || state.userLng === null) continue;
+                    if (t.distance > state.radiusFilter) continue;
+                }
+
                 results.push(t);
             }
 
-            if (state.userLat !== null && state.userLng !== null) {
-                results.sort((a, b) => a.distance - b.distance);
-            }
+            results.sort((a, b) => {
+                const statsA = getToiletReviewStats(a.name);
+                const statsB = getToiletReviewStats(b.name);
+                const hasRevA = Boolean(statsA && statsA.count > 0);
+                const hasRevB = Boolean(statsB && statsB.count > 0);
+
+                // 有被評論的公廁永遠優先顯示，沒有被評論的擺在最後
+                if (hasRevA !== hasRevB) {
+                    return hasRevA ? -1 : 1;
+                }
+
+                // 若兩間都有被評論，且使用者選擇了「由高到低」或「由低到高」
+                if (hasRevA && hasRevB && (state.ratingSort === 'desc' || state.ratingSort === 'asc')) {
+                    const scoreA = Number(statsA.avgOverall);
+                    const scoreB = Number(statsB.avgOverall);
+                    if (scoreA !== scoreB) {
+                        return state.ratingSort === 'desc' ? (scoreB - scoreA) : (scoreA - scoreB);
+                    }
+                    if (statsB.count !== statsA.count) {
+                        return statsB.count - statsA.count;
+                    }
+                }
+
+                // 其餘情況（或同分、皆無評論時）依距離由近到遠排序
+                if (state.userLat !== null && state.userLng !== null) {
+                    return a.distance - b.distance;
+                }
+                return 0;
+            });
 
             state.filteredToilets = results;
             state.currentPage = 1;
@@ -1388,6 +1444,10 @@
             });
             document.getElementById('typeFilterSelect').addEventListener('change', (e) => {
                 state.typeFilter = e.target.value;
+                refreshDistancesAndRender();
+            });
+            document.getElementById('ratingSortSelect').addEventListener('change', (e) => {
+                state.ratingSort = e.target.value;
                 refreshDistancesAndRender();
             });
 
