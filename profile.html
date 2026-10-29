@@ -587,12 +587,14 @@
         }
 
         const SHOP_ITEMS = [
-            { id: 'item_tissue', name: '隨身袖珍面紙包', cost: 2, icon: 'fa-box-tissue', color: '#72D0FF' },
-            { id: 'item_spray', name: '香氛消臭噴霧', cost: 5, icon: 'fa-spray-can-sparkles', color: '#FF85D0' },
-            { id: 'item_soap', name: '有所味洗手慕斯', cost: 8, icon: 'fa-pump-soap', color: '#3CE6B0' },
-            { id: 'item_badge', name: '黃金馬桶榮譽徽章', cost: 12, icon: 'fa-award', color: '#FFF57E' },
-            { id: 'item_plunger', name: '小怪造型吸盤吊飾', cost: 15, icon: 'fa-wand-magic-sparkles', color: '#72D0FF' },
-            { id: 'item_roll', name: '極柔三層捲筒衛生紙', cost: 20, icon: 'fa-toilet-paper', color: '#FF85D0' }
+            { id: 'bg_royal_gold', type: 'background', name: '【背景】皇家金殿', cost: 1, icon: 'fa-crown', color: '#FFE066', previewBg: '#FFF9DB', previewLine: '#B87D00' },
+            { id: 'bg_matcha_zen', type: 'background', name: '【背景】宇治抹茶', cost: 2, icon: 'fa-leaf', color: '#C7E8B5', previewBg: '#EFF7EC', previewLine: '#5C8D3E' },
+            { id: 'bg_lavender_night', type: 'background', name: '【背景】星夜紫羅蘭', cost: 3, icon: 'fa-moon', color: '#D8B4FE', previewBg: '#F3ECFF', previewLine: '#6B21A8' },
+            { id: 'bg_cyber_neon', type: 'background', name: '【背景】霓虹賽博', cost: 5, icon: 'fa-gamepad', color: '#00F5D4', previewBg: '#1E1B4B', previewLine: '#FF2A85' },
+            { id: 'item_tissue', type: 'item', name: '隨身袖珍面紙包', cost: 2, icon: 'fa-box-tissue', color: '#72D0FF' },
+            { id: 'item_spray', type: 'item', name: '香氛消臭噴霧', cost: 5, icon: 'fa-spray-can-sparkles', color: '#FF85D0' },
+            { id: 'item_soap', type: 'item', name: '有所味洗手慕斯', cost: 8, icon: 'fa-pump-soap', color: '#3CE6B0' },
+            { id: 'item_badge', type: 'item', name: '黃金馬桶榮譽徽章', cost: 12, icon: 'fa-award', color: '#FFF57E' }
         ];
 
         const profileState = {
@@ -606,6 +608,7 @@
             pendingRedirectHome: false,
             evaluations: [],
             redemptions: [],
+            unlockedBgIds: new Set(['bg_classic', 'bg_ocean_bubble', 'bg_peach_blossom']),
             profileDoc: null,
             evalLoaded: false,
             redeemLoaded: false,
@@ -617,6 +620,30 @@
             evalUnsubscribe: null,
             redeemUnsubscribe: null
         };
+
+        function syncUnlockedBackgroundsCache() {
+            const unlocked = new Set(['bg_classic', 'bg_ocean_bubble', 'bg_peach_blossom']);
+            const resetAtIso = profileState.profileDoc?.resetHistoryAt || null;
+
+            if (Array.isArray(profileState.profileDoc?.unlockedBackgrounds)) {
+                profileState.profileDoc.unlockedBackgrounds.forEach(id => unlocked.add(id));
+            }
+
+            profileState.redemptions.forEach((r) => {
+                if (resetAtIso && r.createdAt && r.createdAt <= resetAtIso) return;
+                if (r.itemId && String(r.itemId).startsWith('bg_')) {
+                    unlocked.add(r.itemId);
+                }
+            });
+
+            profileState.unlockedBgIds = unlocked;
+            if (profileState.uid) {
+                try {
+                    localStorage.setItem(`poogle_unlocked_bgs_${profileState.uid}`, JSON.stringify(Array.from(unlocked)));
+                    localStorage.setItem('poogle_unlocked_bgs_latest', JSON.stringify(Array.from(unlocked)));
+                } catch (e) {}
+            }
+        }
 
         let toastTimer = null;
         function showProfileToast(msg, bg = '#FFF57E') {
@@ -682,34 +709,6 @@
                     renderAvatarModalOptions();
                 });
             });
-        }
-
-        function setEditProfileMode(editing) {
-            profileState.isEditing = editing;
-            const startBtn = document.getElementById('startEditProfileBtn');
-            const editBtns = document.getElementById('editingActionBtns');
-            const hoverOverlay = document.getElementById('avatarEditHoverOverlay');
-            const avatarBtn = document.getElementById('profileAvatarBtn');
-            const shopContainer = document.getElementById('shopContentContainer');
-
-            if (editing) {
-                startBtn.classList.add('hidden');
-                editBtns.classList.remove('hidden');
-                hoverOverlay.classList.remove('hidden');
-                avatarBtn.classList.add('cursor-pointer');
-                if (shopContainer) {
-                    shopContainer.classList.add('pointer-events-none', 'opacity-45');
-                }
-            } else {
-                startBtn.classList.remove('hidden');
-                editBtns.classList.add('hidden');
-                hoverOverlay.classList.add('hidden');
-                avatarBtn.classList.remove('cursor-pointer');
-                if (shopContainer) {
-                    shopContainer.classList.remove('pointer-events-none', 'opacity-45');
-                }
-            }
-            renderShopItems();
         }
 
         function setEditProfileMode(editing) {
@@ -836,23 +835,44 @@
             const grid = document.getElementById('shopItemsGrid');
             if (!grid) return;
 
+            syncUnlockedBackgroundsCache();
+
             grid.innerHTML = SHOP_ITEMS.map((item, idx) => {
                 const isLocked = profileState.isEditing;
-                const canAfford = !isLocked && profileState.currentPoints >= item.cost;
-                const circleBg = isLocked ? '#CFCFD4' : (canAfford ? item.color : '#E4E4E7');
-                const pillBg = isLocked ? 'bg-[#D6D6D6]' : (canAfford ? 'bg-[#FFF57E]' : 'bg-[#D6D6D6]');
+                const isBgItem = item.type === 'background';
+                const isAlreadyOwned = isBgItem && profileState.unlockedBgIds.has(item.id);
+                const canAfford = !isLocked && !isAlreadyOwned && profileState.currentPoints >= item.cost;
+                const circleBg = isLocked ? '#CFCFD4' : (isAlreadyOwned ? '#3CE6B0' : (canAfford ? item.color : '#E4E4E7'));
+                const pillBg = isLocked ? 'bg-[#D6D6D6]' : (isAlreadyOwned ? 'bg-[#3CE6B0]' : (canAfford ? 'bg-[#FFF57E]' : 'bg-[#D6D6D6]'));
                 const disabledAttr = isLocked ? 'disabled' : '';
+
+                const previewGraphicHtml = isBgItem
+                    ? `<div class="w-[96px] h-[96px] sm:w-[108px] sm:h-[108px] rounded-full border-2 border-[#1E2270] overflow-hidden relative flex items-center justify-center ${isLocked ? 'opacity-60' : 'group-hover:scale-105'} transition-transform"
+                            style="background-color: ${item.previewBg};">
+                           <svg viewBox="0 0 100 100" class="w-full h-full absolute inset-0">
+                               <line x1="0" y1="62" x2="100" y2="90" stroke="${item.previewLine}" stroke-width="2.2" opacity="0.75" />
+                               <line x1="0" y1="78" x2="100" y2="104" stroke="${item.previewLine}" stroke-width="2.2" opacity="0.75" />
+                               <line x1="0" y1="82" x2="85" y2="52" stroke="${item.previewLine}" stroke-width="2.2" opacity="0.75" />
+                               <line x1="20" y1="95" x2="100" y2="65" stroke="${item.previewLine}" stroke-width="2.2" opacity="0.75" />
+                           </svg>
+                           <div class="relative z-10 w-11 h-11 rounded-full border-[1.8px] border-[#1E2270] flex items-center justify-center text-lg text-[#1E2270]"
+                                style="background-color: ${item.color};">
+                               <i class="fa-solid ${isAlreadyOwned ? 'fa-check' : item.icon}"></i>
+                           </div>
+                       </div>`
+                    : `<div class="w-[96px] h-[96px] sm:w-[108px] sm:h-[108px] rounded-full border-2 border-[#1E2270] flex items-center justify-center text-2xl sm:text-3xl ${isLocked ? 'text-neutral-500' : 'text-[#1E2270] group-hover:scale-105'} transition-transform"
+                            style="background-color: ${circleBg};">
+                           <i class="fa-solid ${item.icon}"></i>
+                       </div>`;
+
                 return `
                     <button type="button" data-shop-idx="${idx}" ${disabledAttr}
-                            class="flex flex-col items-center gap-2.5 group focus:outline-none w-full max-w-[140px] p-2 rounded-2xl ${isLocked ? 'cursor-default opacity-60 pointer-events-none' : 'hover:bg-[#FCF6E8]'} transition">
-                        <div class="w-[96px] h-[96px] sm:w-[108px] sm:h-[108px] rounded-full border-2 border-[#1E2270] flex items-center justify-center text-2xl sm:text-3xl ${isLocked ? 'text-neutral-500' : 'text-[#1E2270] group-hover:scale-105'} transition-transform"
-                             style="background-color: ${circleBg};">
-                            <i class="fa-solid ${item.icon}"></i>
-                        </div>
+                            class="flex flex-col items-center gap-2.5 group focus:outline-none w-full max-w-[148px] p-2 rounded-2xl ${isLocked ? 'cursor-default opacity-60 pointer-events-none' : 'hover:bg-[#FCF6E8]'} transition">
+                        ${previewGraphicHtml}
                         <div class="text-center leading-snug">
-                            <div class="text-xs sm:text-[13px] font-normal ${isLocked ? 'text-neutral-500' : 'text-black'}">${escapeHtml(item.name)}</div>
-                            <div class="inline-block mt-1 px-2.5 py-0.5 rounded-full ${pillBg} border border-[#1E2270] text-[11px] font-normal ${isLocked ? 'text-neutral-500' : 'text-black'}">
-                                ${item.cost} 點
+                            <div class="text-xs sm:text-[13px] font-bold ${isLocked ? 'text-neutral-500' : 'text-black'}">${escapeHtml(item.name)}</div>
+                            <div class="inline-block mt-1 px-2.5 py-0.5 rounded-full ${pillBg} border border-[#1E2270] text-[11px] font-bold ${isLocked ? 'text-neutral-500' : 'text-black'}">
+                                ${isAlreadyOwned ? '✓ 已解鎖背景' : `${item.cost} 點`}
                             </div>
                         </div>
                     </button>
@@ -866,6 +886,14 @@
                     const item = SHOP_ITEMS[idx];
                     if (!item) return;
 
+                    if (item.type === 'background' && profileState.unlockedBgIds.has(item.id)) {
+                        try {
+                            localStorage.setItem('poogle_selected_card_bg', item.id);
+                        } catch (e) {}
+                        showProfileToast(`🎨 已將「${item.name}」設為您的預設評鑑背景！下次評鑑時將自動套用`, '#3CE6B0');
+                        return;
+                    }
+
                     if (profileState.currentPoints < item.cost) {
                         showProfileToast(`公德點數不足！還需要 ${item.cost - profileState.currentPoints} 點才能兌換「${item.name}」`, '#FF85D0');
                         return;
@@ -873,7 +901,8 @@
 
                     profileState.pendingRedeemItem = item;
                     document.getElementById('redeemModalTitle').textContent = `兌換「${item.name}」`;
-                    document.getElementById('redeemModalDesc').innerHTML = `將消耗 <strong>${item.cost} 點</strong> 公德點數（目前擁有 ${profileState.currentPoints} 點），確定要兌換嗎？`;
+                    const extraHint = item.type === 'background' ? '<br><span class="text-[#1E2270] font-bold">解鎖後即可在「公廁評鑑」自由套用此背景！</span>' : '';
+                    document.getElementById('redeemModalDesc').innerHTML = `將消耗 <strong>${item.cost} 點</strong> 公德點數（目前擁有 ${profileState.currentPoints} 點），確定要兌換嗎？${extraHint}`;
                     document.getElementById('redeemConfirmModal').classList.remove('hidden');
                 });
             });
@@ -1324,17 +1353,49 @@
                 confirmBtn.textContent = '兌換中...';
 
                 try {
+                    if (item.type === 'background') {
+                        profileState.unlockedBgIds.add(item.id);
+                        try {
+                            localStorage.setItem('poogle_selected_card_bg', item.id);
+                            localStorage.setItem(`poogle_unlocked_bgs_${profileState.uid}`, JSON.stringify(Array.from(profileState.unlockedBgIds)));
+                            localStorage.setItem('poogle_unlocked_bgs_latest', JSON.stringify(Array.from(profileState.unlockedBgIds)));
+                        } catch (e) {}
+                    }
+
                     if (db) {
                         await db.collection('redemptions').add({
                             userId: profileState.uid,
                             itemId: item.id,
+                            itemType: item.type || 'item',
                             itemName: item.name,
                             pointsUsed: item.cost,
                             createdAt: new Date().toISOString(),
                             timestamp: firebase.firestore.FieldValue.serverTimestamp()
                         });
+
+                        if (item.type === 'background') {
+                            await db.collection('user_profiles').doc(profileState.uid).set({
+                                unlockedBackgrounds: Array.from(profileState.unlockedBgIds),
+                                updatedAt: new Date().toISOString()
+                            }, { merge: true });
+                        }
+                    } else {
+                        profileState.redemptions.push({
+                            id: `local_${Date.now()}`,
+                            userId: profileState.uid,
+                            itemId: item.id,
+                            itemType: item.type || 'item',
+                            itemName: item.name,
+                            pointsUsed: item.cost,
+                            createdAt: new Date().toISOString()
+                        });
+                        recalculateAndRenderPointsAndHistory();
                     }
-                    showProfileToast(`🎉 成功兌換「${item.name}」（-${item.cost} 點）！`, '#3CE6B0');
+
+                    const msg = item.type === 'background'
+                        ? `🎉 成功解鎖「${item.name}」（-${item.cost} 點）！已自動設為您的評鑑背景`
+                        : `🎉 成功兌換「${item.name}」（-${item.cost} 點）！`;
+                    showProfileToast(msg, '#3CE6B0');
                 } catch (err) {
                     console.warn('Redeem error:', err);
                     showProfileToast('兌換失敗，請稍後再試', '#FF85D0');
@@ -1427,6 +1488,16 @@
                 btn.disabled = true;
                 btn.textContent = '清空雲端紀錄中...';
                 try {
+                    const defaultBgs = ['bg_classic', 'bg_ocean_bubble', 'bg_peach_blossom'];
+                    profileState.unlockedBgIds = new Set(defaultBgs);
+                    try {
+                        if (profileState.uid) {
+                            localStorage.setItem(`poogle_unlocked_bgs_${profileState.uid}`, JSON.stringify(defaultBgs));
+                        }
+                        localStorage.setItem('poogle_unlocked_bgs_latest', JSON.stringify(defaultBgs));
+                        localStorage.setItem('poogle_selected_card_bg', 'bg_classic');
+                    } catch (e) {}
+
                     if (db && profileState.uid) {
                         const evalSnap = await db.collection('evaluations').where('userId', '==', profileState.uid).get();
                         const redeemSnap = await db.collection('redemptions').where('userId', '==', profileState.uid).get();
@@ -1441,6 +1512,7 @@
                             email: profileState.email || '',
                             meritPoints: 0,
                             totalReports: 0,
+                            unlockedBackgrounds: defaultBgs,
                             _rawEvalCount: 0,
                             _rawSpentPoints: 0,
                             resetHistoryAt: new Date().toISOString(),
@@ -1452,7 +1524,7 @@
                         await updateBackendCounts(0, 0, true);
                     }
                     testAdminModal.classList.add('hidden');
-                    showProfileToast('🧹 已完整歸 0 並清空此帳號的所有測試評論與兌換紀錄！', '#3CE6B0');
+                    showProfileToast('🧹 已完整歸 0 並重置購買背景、測試評論與兌換紀錄！', '#3CE6B0');
                 } catch (err) {
                     console.warn('Reset all error:', err);
                     showProfileToast('清空失敗，請稍後再試', '#FF85D0');

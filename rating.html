@@ -176,6 +176,10 @@
                 </h1>
                 <p id="toiletManagerText" class="text-xs sm:text-[15px] text-black font-normal leading-[1.05] mb-1">管理單位：讀取中...</p>
                 <p id="toiletAddressOrPhoneText" class="text-xs sm:text-[15px] text-black font-normal leading-[1.05]">地址：讀取中...</p>
+                <div id="editExistingEvalBanner" class="hidden mt-2.5 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FFF57E] border-[1.5px] border-[#1E2270] text-xs sm:text-sm font-bold text-[#1E2270] w-fit">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <span>您已評鑑過此公廁，目前為「編輯舊評鑑」模式（送出後將直接更新您原有的評鑑）</span>
+                </div>
             </div>
         </header>
 
@@ -183,14 +187,34 @@
         <div class="w-full max-w-[1920px] mx-auto mt-4 lg:mt-8 flex flex-col lg:flex-row items-start justify-between gap-10 lg:gap-6 relative">
             
             <!-- LEFT COLUMN: Flush-Left Dynamic Public Toilet Card (公廁圖卡-03.svg) -->
-            <div class="w-full lg:w-[52%] shrink-0 pr-4 sm:pr-8 lg:pr-0">
+            <div class="w-full lg:w-[52%] shrink-0 pr-4 sm:pr-8 lg:pr-0 space-y-3">
+                <!-- Card Background Switcher Bar (3 Free + 4 Point-Shop Unlockable) -->
+                <div class="px-4 sm:px-8 lg:pl-8 lg:pr-2">
+                    <div class="p-3 rounded-2xl bg-white/90 border-[1.8px] border-[#1E2270] shadow-[0_4px_0_#1E2270] space-y-2">
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                            <div class="flex items-center gap-1.5 text-xs sm:text-sm font-extrabold text-black">
+                                <i class="fa-solid fa-palette text-[#1E2270]"></i>
+                                <span>替換圖卡背景</span>
+                                <span class="text-[11px] font-bold text-neutral-500">（3 款免費・4 款於個人空間點數兌換）</span>
+                            </div>
+                            <a href="./profile.html" id="goShopFromBgBarBtn" class="poogle-pill-btn px-2.5 py-0.5 rounded-full bg-[#FFF57E] hover:bg-[#f7eb5e] text-[11px] font-extrabold text-black no-underline flex items-center gap-1">
+                                <i class="fa-solid fa-store text-[#1E2270]"></i>
+                                <span>前往兌換商店</span>
+                            </a>
+                        </div>
+                        <div id="cardBgSelectorContainer" class="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5">
+                            <!-- Dynamically populated with 3 free & 4 unlockable background pills -->
+                        </div>
+                    </div>
+                </div>
+
                 <div id="interactiveCardWrapper" class="w-full aspect-[896/1092] rounded-r-[28px] lg:rounded-l-none overflow-hidden relative bg-[#FCF6E8]">
                     <svg id="toiletCardSvg" viewBox="0 0 896 1092" class="w-full h-full block select-none">
                         <defs>
                             <radialGradient id="floorGlowGrad" cx="46%" cy="76%" r="54%">
-                                <stop offset="0%" stop-color="#FFF59E" stop-opacity="0.72" />
-                                <stop offset="60%" stop-color="#FFF59E" stop-opacity="0.32" />
-                                <stop offset="100%" stop-color="#FCF6E8" stop-opacity="0" />
+                                <stop id="bgGlowStop1" offset="0%" stop-color="#FFF59E" stop-opacity="0.72" />
+                                <stop id="bgGlowStop2" offset="60%" stop-color="#FFF59E" stop-opacity="0.32" />
+                                <stop id="bgGlowStop3" offset="100%" stop-color="#FCF6E8" stop-opacity="0" />
                             </radialGradient>
                             <clipPath id="cardBoundsClip">
                                 <rect x="0" y="0" width="896" height="1092" rx="28" />
@@ -198,12 +222,15 @@
                         </defs>
 
                         <g clip-path="url(#cardBoundsClip)">
-                            <!-- 1. Cream Floor Background & Warm Glow -->
-                            <rect x="0" y="0" width="896" height="1092" fill="#FCF6E8" />
-                            <rect x="0" y="520" width="896" height="572" fill="url(#floorGlowGrad)" />
+                            <!-- 1. Base Floor/Wall Background & Warm Glow -->
+                            <rect id="bgBaseRect" x="0" y="0" width="896" height="1092" fill="#FCF6E8" />
+                            <rect id="bgGlowRect" x="0" y="520" width="896" height="572" fill="url(#floorGlowGrad)" />
 
-                            <!-- 2. Perspective Red Tile Floor Grid Lines -->
-                            <g stroke="#E05244" stroke-width="2.4" opacity="0.95">
+                            <!-- 1B. Dynamic Background Theme Decoration Layer -->
+                            <g id="bgThemeDecorLayer"></g>
+
+                            <!-- 2. Perspective Tile Floor Grid Lines -->
+                            <g id="bgTileGridGroup" stroke="#E05244" stroke-width="2.4" opacity="0.95">
                                 <line x1="-100" y1="538" x2="960" y2="880" />
                                 <line x1="-100" y1="600" x2="960" y2="942" />
                                 <line x1="-100" y1="662" x2="960" y2="1004" />
@@ -414,89 +441,88 @@
     </main>
 
     <!-- =================================================================== -->
-    <!-- STAGE 3: SUCCESS / FINAL CARD PAGE                                  -->
+    <!-- STAGE 3: SUCCESS SUMMARY & COLLECTIBLE CARD SCREEN                  -->
     <!-- =================================================================== -->
-    <section id="successStage" class="hidden w-full min-h-screen bg-[#FCF6E8] pb-20 px-4 sm:px-10 pt-6">
-        <div class="max-w-[1440px] mx-auto">
-            <!-- Top-left Logo (Scaled to 2/3 of original size, with hover scale animation) -->
-            <div>
-                <a href="./index.html" class="group inline-block focus:outline-none" title="回到有所味主頁">
-                    <img src="./img/logo.png" alt="有所味 Logo"
-                         class="w-[117px] sm:w-[150px] lg:w-[183px] h-auto object-contain transition-transform duration-200 group-hover:scale-105"
-                         onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 260 95%22><text x=%2210%22 y=%2265%22 font-size=%2250%22 font-weight=%22bold%22 fill=%22%2372D0FF%22 stroke=%22%231E2270%22 stroke-width=%223%22>有所味</text></svg>';" />
-                </a>
-            </div>
+    <section id="successStage" class="hidden min-h-screen w-full bg-[#FCF6E8] flex flex-col justify-between py-6 px-6 sm:px-14 relative overflow-x-hidden">
+        <!-- Top Navigation Bar -->
+        <div class="w-full max-w-[1680px] mx-auto flex items-center justify-between">
+            <a href="./index.html" class="group inline-block focus:outline-none" title="回到有所味主頁">
+                <img src="./img/logo.png" alt="有所味 Logo"
+                     class="w-[117px] sm:w-[150px] lg:w-[183px] h-auto object-contain transition-transform duration-200 group-hover:scale-105"
+                     onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 260 95%22><text x=%2210%22 y=%2265%22 font-size=%2250%22 font-weight=%22bold%22 fill=%22%2372D0FF%22 stroke=%22%231E2270%22 stroke-width=%223%22>有所味</text></svg>';" />
+            </a>
 
-            <!-- Center Title -->
-            <div class="text-center mt-2 mb-8 space-y-2">
-                <h1 class="text-4xl sm:text-5xl font-bold text-black tracking-wide">回報成功!</h1>
-                <p class="text-sm sm:text-base text-black font-normal">感謝你的回饋，祝你天天如廁順利</p>
-            </div>
+            <a href="./index.html"
+               class="poogle-ellipse-btn w-[112px] h-[58px] sm:w-[142px] sm:h-[76px] bg-[#72D0FF] hover:bg-[#5bc6ff] text-black text-base sm:text-[19px] font-normal flex items-center justify-center no-underline">
+                主頁
+            </a>
+        </div>
 
-            <!-- Final Synthesized Card -->
-            <div class="max-w-[740px] mx-auto relative rounded-[28px] overflow-hidden border-2 border-[#1E2270] shadow-[0_8px_0_#1E2270] bg-[#FCF6E8]">
-                <div id="finalCardSvgContainer" class="w-full aspect-[896/1092]"></div>
+        <!-- Center Collectible Card -->
+        <div class="my-6 flex flex-col items-center justify-center">
+            <div class="w-full max-w-[420px] sm:max-w-[480px] aspect-[896/1092] rounded-[28px] border-2 border-[#1E2270] overflow-hidden relative shadow-[0_8px_0_#1E2270] bg-[#FCF6E8]">
+                <div id="finalCardSvgContainer" class="w-full h-full"></div>
 
-                <!-- Tilted Toilet Name & Date Overlay (Center-aligned) -->
-                <div class="absolute top-[7%] left-[4%] pointer-events-none origin-center flex flex-col items-center text-center" style="transform: rotate(-16deg);">
-                    <h2 id="finalCardToiletName" class="text-3xl sm:text-5xl font-bold text-black text-center tracking-wide drop-shadow-sm max-w-[340px] sm:max-w-[440px] leading-tight">
+                <!-- Tilted & Center-Aligned Toilet Name + Date on Top-Left of Card -->
+                <div class="absolute top-[7.5%] left-[6%] max-w-[54%] pointer-events-none flex flex-col items-center text-center"
+                     style="transform: rotate(-16deg);">
+                    <div id="finalCardToiletName" class="text-xl sm:text-2xl font-extrabold text-black leading-tight tracking-wide">
                         廁所名稱
-                    </h2>
-                    <p id="finalCardDate" class="text-sm sm:text-xl font-medium text-black tracking-widest text-center mt-1.5">
+                    </div>
+                    <div id="finalCardDate" class="text-xs sm:text-sm font-medium text-black mt-1 tracking-wider">
                         2026 - 10 - 24
-                    </p>
+                    </div>
                 </div>
 
-                <!-- Pinned Comment Note Overlay (Hidden when user leaves no comment) -->
-                <div id="finalCardCommentNote" class="hidden absolute top-[12%] right-[5%] w-[52%] sm:w-[48%] bg-white border border-[#1E2270]/30 shadow-md px-4 py-3 sm:px-6 sm:py-4 pointer-events-none" style="transform: rotate(3.5deg);">
-                    <span class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#3CE6B0] border border-[#1E2270] absolute top-2 left-2"></span>
-                    <span class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#3CE6B0] border border-[#1E2270] absolute top-2 right-2"></span>
-                    <p id="finalCardCommentText" class="text-xs sm:text-[15px] text-black font-normal text-center leading-relaxed break-words pt-1"></p>
+                <!-- Pinned User Comment Note on Top-Right of Card -->
+                <div id="finalCardCommentNote"
+                     class="hidden absolute top-[11%] right-[5%] w-[46%] bg-white border border-[#1E2270]/35 px-4 py-3.5 shadow-md pointer-events-none"
+                     style="transform: rotate(3.5deg);">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#3CE6B0] border border-[#1E2270] absolute top-1.5 left-1.5"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#3CE6B0] border border-[#1E2270] absolute top-1.5 right-1.5"></span>
+                    <p id="finalCardCommentText" class="text-xs sm:text-sm text-black font-normal text-center leading-relaxed break-words mt-1"></p>
                 </div>
             </div>
 
-            <!-- Bottom Actions: Download, Share & Home -->
-            <div class="max-w-[740px] mx-auto mt-10 flex items-center justify-center relative">
-                <div class="flex items-center gap-6">
-                    <button id="downloadCardBtn" type="button" class="text-black hover:scale-110 transition-transform text-3xl sm:text-4xl focus:outline-none" title="下載紀念圖卡">
-                        <i class="fa-solid fa-download"></i>
-                    </button>
-                    <button id="shareCardBtn" type="button" class="text-black hover:scale-110 transition-transform text-3xl sm:text-4xl focus:outline-none" title="分享公廁評鑑 JPEG 圖卡">
-                        <i class="fa-solid fa-arrow-up-from-bracket"></i>
-                    </button>
-                </div>
-
-                <a href="./index.html" class="poogle-ellipse-btn absolute right-2 sm:right-12 w-[112px] h-[58px] sm:w-[136px] sm:h-[70px] bg-[#72D0FF] hover:bg-[#5bc6ff] text-black text-base sm:text-[18px] font-normal flex items-center justify-center no-underline">
-                    主頁
-                </a>
+            <!-- Action Buttons Below Card: Download JPG & Share -->
+            <div class="flex items-center justify-center gap-4 mt-6">
+                <button id="downloadCardBtn" type="button"
+                        class="poogle-pill-btn px-6 py-2.5 rounded-full bg-[#FFF57E] hover:bg-[#f7eb5e] text-black font-extrabold text-xs sm:text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-download"></i>
+                    <span>下載紀念圖卡 (.jpg)</span>
+                </button>
+                <button id="shareCardBtn" type="button"
+                        class="poogle-pill-btn px-6 py-2.5 rounded-full bg-[#3CE6B0] hover:bg-[#2fd49f] text-black font-extrabold text-xs sm:text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-share-nodes"></i>
+                    <span>分享圖卡</span>
+                </button>
             </div>
         </div>
+
+        <div class="h-2"></div>
     </section>
 
     <!-- =================================================================== -->
-    <!-- MODAL: SWITCH NEARBY TOILET (STRICTLY WITHIN 100M ONLY)             -->
+    <!-- MODAL: SWITCH NEARBY TOILET WITHIN 100M                             -->
     <!-- =================================================================== -->
-    <div id="nearbySwitchModal" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-[#FCF6E8] rounded-[28px] max-w-lg w-full border-2 border-[#1E2270] shadow-[0_8px_0_#1E2270] overflow-hidden flex flex-col max-h-[82vh]">
-            <div class="bg-[#FF85D6] border-b-2 border-[#1E2270] px-6 py-4 flex items-center justify-between">
-                <div>
-                    <h3 class="font-extrabold text-base sm:text-lg text-black">選擇您所在的公廁（限 100 公尺內）</h3>
-                    <p class="text-[11px] text-[#1E2270] font-medium">為避免跨區作弊，僅列出距離您目前定位 100m 內的公廁</p>
-                </div>
+    <div id="nearbySwitchModal" class="hidden fixed inset-0 z-50 bg-black/45 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#FCF6E8] rounded-[28px] max-w-md w-full border-2 border-[#1E2270] shadow-[0_8px_0_#1E2270] overflow-hidden flex flex-col max-h-[80vh]">
+            <div class="bg-[#FF85D0] border-b-2 border-[#1E2270] px-6 py-4 flex items-center justify-between">
+                <h3 class="font-extrabold text-base text-black">切換附近 100 公尺內的公廁</h3>
                 <button id="closeNearbySwitchBtn" type="button" class="poogle-pill-btn w-8 h-8 rounded-full bg-white text-black flex items-center justify-center">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-            <div class="p-4 border-b border-[#1E2270]/15 bg-white">
-                <input id="switchToiletSearchInput" type="text" placeholder="在 100 公尺內的公廁中搜尋名稱..."
-                       class="w-full px-4 py-2 rounded-full bg-[#FCF6E8] border-[1.5px] border-[#1E2270] text-sm focus:outline-none" />
+            <div class="p-4 border-b border-[#1E2270]/15">
+                <input id="switchToiletSearchInput" type="text" placeholder="搜尋附近 100m 內的公廁名稱..."
+                       class="w-full px-4 py-2 rounded-full bg-white border-[1.5px] border-[#1E2270] text-xs sm:text-sm text-black focus:outline-none" />
             </div>
-            <div id="nearbySwitchList" class="p-4 overflow-y-auto space-y-2 flex-1 text-xs sm:text-sm"></div>
+            <div id="nearbySwitchList" class="p-4 overflow-y-auto space-y-2.5 flex-1 text-xs sm:text-sm"></div>
         </div>
     </div>
 
     <!-- =================================================================== -->
-    <!-- MODAL: 5-MINUTE COOLDOWN LOCK SCREEN                                -->
+    <!-- MODAL: 10-MINUTE COOLDOWN LOCK SCREEN (FOR ANONYMOUS USERS)         -->
     <!-- =================================================================== -->
     <div id="cooldownLockModal" class="hidden fixed inset-0 z-40 bg-black/45 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white rounded-[28px] max-w-md w-full border-2 border-[#1E2270] shadow-[0_8px_0_#1E2270] p-7 sm:p-9 text-center space-y-5">
@@ -507,7 +533,7 @@
                 公廁名稱
             </div>
             <h3 class="text-lg sm:text-xl font-extrabold text-black leading-relaxed">
-                您已評論過此公廁，<span id="cooldownMinutesLeft" class="text-[#E05244] underline underline-offset-4 mx-0.5">5</span>分鐘後才能重新評鑑
+                您已評論過此公廁，<span id="cooldownMinutesLeft" class="text-[#E05244] underline underline-offset-4 mx-0.5">10</span>分鐘後才能重新評鑑
             </h3>
             <div class="pt-2 flex flex-col gap-3 items-center">
                 <div class="flex flex-row items-center justify-center gap-3 w-full">
@@ -518,32 +544,56 @@
                         回主頁
                     </a>
                 </div>
-                <button id="cheatUnlockCooldownBtn" type="button" class="poogle-pill-btn w-full py-2 px-5 rounded-full bg-[#FF85D0]/40 hover:bg-[#FF85D0] text-[#1E2270] font-bold text-xs">
-                    <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>作弊按鈕：立即解除 5 分鐘限制（測試用）
+                <!-- 測試用快速解鎖按鈕 -->
+                <button id="cheatUnlockCooldownBtn" type="button" class="mt-1 px-4 py-1.5 rounded-full bg-[#FFF57E]/75 hover:bg-[#FFF57E] border border-dashed border-[#1E2270] text-[12px] font-bold text-[#1E2270] transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>測試用：立即解除 10 分鐘限制</span>
                 </button>
             </div>
         </div>
     </div>
 
     <!-- =================================================================== -->
-    <!-- MODAL: CONFIRM LEAVE RATING PAGE (Matches Screenshot 183323_2.png)  -->
+    <!-- MODAL: CONFIRM LEAVE RATING SCREEN ("確定放棄？")                    -->
     <!-- =================================================================== -->
     <div id="confirmLeaveModal" class="hidden fixed inset-0 z-50 bg-black/35 backdrop-blur-[1px] flex items-center justify-center p-4">
         <div class="bg-white rounded-[24px] sm:rounded-[30px] max-w-[386px] w-full px-6 py-8 sm:px-9 sm:py-10 shadow-2xl flex flex-col items-center justify-center text-center">
             <div class="space-y-1.5 text-black text-sm sm:text-[17px] font-normal tracking-wide leading-relaxed">
-                <p>確定返回?</p>
-                <p>您的操作將<span class="underline underline-offset-4 decoration-2">不會</span>被記錄</p>
+                <p>確定放棄?</p>
+                <p>您的操作將<span class="underline underline-offset-4 decoration-2">不會</span>被儲存</p>
             </div>
-
             <div class="flex flex-row items-center justify-center gap-4 sm:gap-8 mt-7 sm:mt-9 w-full">
                 <button id="confirmLeaveHomeBtn" type="button"
                         class="w-[120px] sm:w-[136px] h-[36px] sm:h-[42px] rounded-full bg-transparent border-[1.5px] border-[#1E2270] text-black text-xs sm:text-[15px] font-normal flex items-center justify-center transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_4px_0_#1E2270] focus:outline-none">
-                    返回首頁
+                    回主頁
                 </button>
                 <button id="cancelLeaveEditBtn" type="button"
                         class="w-[120px] sm:w-[136px] h-[36px] sm:h-[42px] rounded-full bg-[#80FF72] hover:bg-[#6ef560] border-[1.5px] border-[#1E2270] text-black text-xs sm:text-[15px] font-normal flex items-center justify-center transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_4px_0_#1E2270] focus:outline-none">
                     繼續編輯
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- MODAL: LOCKED BACKGROUND PROMPT (GO TO PERSONAL SPACE SHOP)         -->
+    <!-- =================================================================== -->
+    <div id="lockedBgModal" class="hidden fixed inset-0 z-50 bg-black/45 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#FCF6E8] rounded-[28px] max-w-sm w-full border-2 border-[#1E2270] shadow-[0_8px_0_#1E2270] p-6 text-center space-y-4">
+            <div id="lockedBgPreviewCircle" class="w-16 h-16 rounded-full bg-[#FFF57E] border-2 border-[#1E2270] mx-auto flex items-center justify-center text-2xl text-[#1E2270]">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <h3 id="lockedBgModalTitle" class="text-lg font-extrabold text-black">此背景尚未解鎖</h3>
+            <p id="lockedBgModalDesc" class="text-xs sm:text-sm text-neutral-700 leading-relaxed"></p>
+            <div class="flex items-center justify-center gap-3 pt-2">
+                <button id="closeLockedBgModalBtn" type="button"
+                        class="poogle-pill-btn flex-1 py-2.5 rounded-full bg-white text-black font-extrabold text-xs sm:text-sm">
+                    繼續評鑑
+                </button>
+                <a href="./profile.html"
+                   class="poogle-pill-btn flex-1 py-2.5 rounded-full bg-[#72D0FF] hover:bg-[#5bc6ff] text-black font-extrabold text-xs sm:text-sm no-underline text-center">
+                    前往個人空間購買
+                </a>
             </div>
         </div>
     </div>
@@ -688,19 +738,267 @@
         const MAP_IDB_NAME = 'TaiwanPublicToiletMapDB_v9';
         const MAP_IDB_STORE = 'dataset_cache';
         const COOLDOWN_STORAGE_KEY = 'poogle_toilet_cooldown_map_v1';
-        const COOLDOWN_DURATION_MS = 5 * 60 * 1000; // 5 分鐘冷卻時間
+        const COOLDOWN_DURATION_MS = 10 * 60 * 1000; // 匿名使用者 10 分鐘冷卻時間
+
+        // 7 款評鑑圖卡背景主題（前 3 款免費，後 4 款需在個人空間用點數購買解鎖）
+        const CARD_BACKGROUNDS = [
+            {
+                id: 'bg_classic',
+                name: '經典紅磚',
+                free: true,
+                cost: 0,
+                baseColor: '#FCF6E8',
+                glowColor: '#FFF59E',
+                tileColor: '#E05244',
+                badgeColor: '#FFF57E',
+                isDark: false,
+                decorSvg: ''
+            },
+            {
+                id: 'bg_ocean_bubble',
+                name: '海洋泡泡',
+                free: true,
+                cost: 0,
+                baseColor: '#E6F7FF',
+                glowColor: '#A6E9FF',
+                tileColor: '#1E6FD9',
+                badgeColor: '#72D0FF',
+                isDark: false,
+                decorSvg: `
+                    <g opacity="0.65">
+                        <circle cx="145" cy="690" r="34" fill="#FFFFFF" fill-opacity="0.55" stroke="#1E6FD9" stroke-width="2.2" />
+                        <circle cx="133" cy="678" r="8" fill="#FFFFFF" />
+                        <circle cx="240" cy="830" r="22" fill="#FFFFFF" fill-opacity="0.55" stroke="#1E6FD9" stroke-width="2" />
+                        <circle cx="760" cy="720" r="42" fill="#FFFFFF" fill-opacity="0.5" stroke="#1E6FD9" stroke-width="2.4" />
+                        <circle cx="745" cy="705" r="10" fill="#FFFFFF" />
+                        <circle cx="670" cy="880" r="26" fill="#FFFFFF" fill-opacity="0.55" stroke="#1E6FD9" stroke-width="2" />
+                        <circle cx="820" cy="950" r="18" fill="#FFFFFF" fill-opacity="0.6" stroke="#1E6FD9" stroke-width="2" />
+                    </g>
+                `
+            },
+            {
+                id: 'bg_peach_blossom',
+                name: '蜜桃粉櫻',
+                free: true,
+                cost: 0,
+                baseColor: '#FFF0F6',
+                glowColor: '#FFC2E2',
+                tileColor: '#D63384',
+                badgeColor: '#FF85D0',
+                isDark: false,
+                decorSvg: `
+                    <g opacity="0.65" fill="#FF85D0" stroke="#D63384" stroke-width="1.8">
+                        <circle cx="130" cy="720" r="14" />
+                        <circle cx="265" cy="660" r="10" />
+                        <circle cx="780" cy="680" r="16" />
+                        <circle cx="710" cy="830" r="12" />
+                        <circle cx="825" cy="910" r="15" />
+                        <circle cx="180" cy="940" r="11" />
+                    </g>
+                `
+            },
+            {
+                id: 'bg_royal_gold',
+                name: '皇家金殿',
+                free: false,
+                cost: 1,
+                baseColor: '#FFF9DB',
+                glowColor: '#FFD43B',
+                tileColor: '#B87D00',
+                badgeColor: '#FFE066',
+                isDark: false,
+                decorSvg: `
+                    <g opacity="0.8" fill="#FFD43B" stroke="#B87D00" stroke-width="2.2">
+                        <polygon points="150,670 168,705 150,740 132,705" />
+                        <polygon points="770,680 792,722 770,764 748,722" />
+                        <polygon points="685,870 703,905 685,940 667,905" />
+                        <polygon points="220,900 238,935 220,970 202,935" />
+                    </g>
+                `
+            },
+            {
+                id: 'bg_matcha_zen',
+                name: '宇治抹茶',
+                free: false,
+                cost: 2,
+                baseColor: '#EFF7EC',
+                glowColor: '#BFE3B4',
+                tileColor: '#4C7A34',
+                badgeColor: '#A3E635',
+                isDark: false,
+                decorSvg: `
+                    <g opacity="0.7" fill="#73A942" stroke="#2F5220" stroke-width="2">
+                        <ellipse cx="155" cy="710" rx="26" ry="12" transform="rotate(-25 155 710)" />
+                        <ellipse cx="765" cy="730" rx="30" ry="13" transform="rotate(20 765 730)" />
+                        <ellipse cx="695" cy="895" rx="24" ry="11" transform="rotate(-15 695 895)" />
+                        <ellipse cx="235" cy="910" rx="22" ry="10" transform="rotate(30 235 910)" />
+                    </g>
+                `
+            },
+            {
+                id: 'bg_lavender_night',
+                name: '星夜紫羅蘭',
+                free: false,
+                cost: 3,
+                baseColor: '#F3ECFF',
+                glowColor: '#D8B4FE',
+                tileColor: '#6B21A8',
+                badgeColor: '#C084FC',
+                isDark: false,
+                decorSvg: `
+                    <g opacity="0.8" fill="#C084FC" stroke="#581C87" stroke-width="2">
+                        <circle cx="155" cy="695" r="22" />
+                        <circle cx="165" cy="688" r="18" fill="#F3ECFF" stroke="none" />
+                        <polygon points="765,675 773,698 796,706 773,714 765,737 757,714 734,706 757,698" fill="#FFF57E" />
+                        <polygon points="685,855 691,872 708,878 691,884 685,901 679,884 662,878 679,872" fill="#FFF57E" />
+                    </g>
+                `
+            },
+            {
+                id: 'bg_cyber_neon',
+                name: '霓虹賽博',
+                free: false,
+                cost: 5,
+                baseColor: '#1E1B4B',
+                glowColor: '#00F5D4',
+                tileColor: '#FF2A85',
+                badgeColor: '#00F5D4',
+                isDark: true,
+                decorSvg: `
+                    <g opacity="0.85">
+                        <circle cx="730" cy="700" r="78" fill="#FF2A85" stroke="#00F5D4" stroke-width="3" />
+                        <line x1="645" y1="715" x2="815" y2="715" stroke="#1E1B4B" stroke-width="6" />
+                        <line x1="650" y1="735" x2="810" y2="735" stroke="#1E1B4B" stroke-width="8" />
+                        <line x1="660" y1="755" x2="800" y2="755" stroke="#1E1B4B" stroke-width="10" />
+                        <circle cx="170" cy="700" r="6" fill="#00F5D4" />
+                        <circle cx="240" cy="640" r="5" fill="#FFF57E" />
+                        <circle cx="810" cy="880" r="6" fill="#00F5D4" />
+                    </g>
+                `
+            }
+        ];
 
         const state = {
             allToilets: [],
             nearbyToilets: [],
             currentToilet: null,
             currentUser: null,
+            userExistingEvalsByName: new Map(),
+            editingExistingEval: null,
             userLat: null,
             userLng: null,
             ratings: { space: 3, smell: 3, lighting: 3, cleanliness: 3 },
             savedComment: '',
+            selectedBgId: 'bg_classic',
+            unlockedBgIds: new Set(['bg_classic', 'bg_ocean_bubble', 'bg_peach_blossom']),
             cooldownTimerId: null
         };
+
+        function loadUnlockedBackgroundsFromCache(uid) {
+            const unlocked = new Set(['bg_classic', 'bg_ocean_bubble', 'bg_peach_blossom']);
+            try {
+                const rawLatest = JSON.parse(localStorage.getItem('poogle_unlocked_bgs_latest') || '[]');
+                if (Array.isArray(rawLatest)) rawLatest.forEach(id => unlocked.add(id));
+                if (uid) {
+                    const rawUser = JSON.parse(localStorage.getItem(`poogle_unlocked_bgs_${uid}`) || '[]');
+                    if (Array.isArray(rawUser)) rawUser.forEach(id => unlocked.add(id));
+                }
+            } catch (e) {}
+            state.unlockedBgIds = unlocked;
+
+            try {
+                const savedBg = localStorage.getItem('poogle_selected_card_bg');
+                if (savedBg && unlocked.has(savedBg)) {
+                    state.selectedBgId = savedBg;
+                } else if (!unlocked.has(state.selectedBgId)) {
+                    state.selectedBgId = 'bg_classic';
+                }
+            } catch (e) {}
+        }
+
+        function applySelectedBackgroundToSvg() {
+            const bgObj = CARD_BACKGROUNDS.find(b => b.id === state.selectedBgId) || CARD_BACKGROUNDS[0];
+            const wrapper = document.getElementById('interactiveCardWrapper');
+            const baseRect = document.getElementById('bgBaseRect');
+            const stop1 = document.getElementById('bgGlowStop1');
+            const stop2 = document.getElementById('bgGlowStop2');
+            const stop3 = document.getElementById('bgGlowStop3');
+            const tileGrid = document.getElementById('bgTileGridGroup');
+            const decorLayer = document.getElementById('bgThemeDecorLayer');
+
+            if (wrapper) wrapper.style.backgroundColor = bgObj.baseColor;
+            if (baseRect) baseRect.setAttribute('fill', bgObj.baseColor);
+            if (stop1) stop1.setAttribute('stop-color', bgObj.glowColor);
+            if (stop2) stop2.setAttribute('stop-color', bgObj.glowColor);
+            if (stop3) stop3.setAttribute('stop-color', bgObj.baseColor);
+            if (tileGrid) tileGrid.setAttribute('stroke', bgObj.tileColor);
+            if (decorLayer) decorLayer.innerHTML = bgObj.decorSvg || '';
+        }
+
+        function renderCardBackgroundSelector() {
+            const container = document.getElementById('cardBgSelectorContainer');
+            if (!container) return;
+
+            container.innerHTML = CARD_BACKGROUNDS.map((bg) => {
+                const isUnlocked = bg.free || state.unlockedBgIds.has(bg.id);
+                const isSelected = state.selectedBgId === bg.id;
+                const statusLabel = bg.free ? '免費' : (isUnlocked ? '已解鎖' : `🔒 ${bg.cost}點`);
+
+                return `
+                    <button type="button" data-bg-id="${bg.id}"
+                            class="poogle-pill-btn shrink-0 px-3 py-1.5 rounded-full flex items-center gap-2 text-xs font-extrabold transition ${isSelected ? 'bg-[#FFF57E] ring-2 ring-[#1E2270] -translate-y-0.5 shadow-[0_3px_0_#1E2270]' : (isUnlocked ? 'bg-white hover:bg-[#FCF6E8]' : 'bg-[#E4E4E7] opacity-85 hover:opacity-100')}">
+                        <span class="w-4 h-4 rounded-full border border-[#1E2270] shrink-0 relative overflow-hidden inline-block"
+                              style="background-color: ${bg.baseColor};">
+                            <span class="absolute inset-x-0 bottom-0 h-1.5" style="background-color: ${bg.tileColor};"></span>
+                        </span>
+                        <span class="text-black">${escapeHtml(bg.name)}</span>
+                        <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold border border-[#1E2270] ${isUnlocked ? 'bg-[#3CE6B0] text-black' : 'bg-white text-neutral-700'}">
+                            ${statusLabel}
+                        </span>
+                    </button>
+                `;
+            }).join('');
+
+            container.querySelectorAll('[data-bg-id]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const bgId = btn.getAttribute('data-bg-id');
+                    const bgObj = CARD_BACKGROUNDS.find(b => b.id === bgId);
+                    if (!bgObj) return;
+
+                    const isUnlocked = bgObj.free || state.unlockedBgIds.has(bgObj.id);
+                    if (!isUnlocked) {
+                        const modal = document.getElementById('lockedBgModal');
+                        const titleEl = document.getElementById('lockedBgModalTitle');
+                        const descEl = document.getElementById('lockedBgModalDesc');
+                        const circleEl = document.getElementById('lockedBgPreviewCircle');
+                        if (titleEl) titleEl.textContent = `「${bgObj.name}」背景尚未解鎖`;
+                        if (descEl) {
+                            descEl.innerHTML = `此背景需前往 <strong>個人空間 ➔ 兌換商店</strong> 使用 <strong>${bgObj.cost} 點公德點數</strong> 購買解鎖。<br>解鎖後即可永久於評鑑圖卡中自由替換！`;
+                        }
+                        if (circleEl) circleEl.style.backgroundColor = bgObj.badgeColor || '#FFF57E';
+                        if (modal) modal.classList.remove('hidden');
+                        return;
+                    }
+
+                    state.selectedBgId = bgObj.id;
+                    try {
+                        localStorage.setItem('poogle_selected_card_bg', bgObj.id);
+                    } catch (e) {}
+                    applySelectedBackgroundToSvg();
+                    renderCardBackgroundSelector();
+                });
+            });
+        }
+
+        function getActiveLoggedInUser() {
+            if (auth && auth.currentUser) return auth.currentUser;
+            if (state.currentUser && state.currentUser.uid) return state.currentUser;
+            try {
+                const cached = JSON.parse(localStorage.getItem('poogle_auth_user') || 'null');
+                if (cached && cached.uid) return cached;
+            } catch (e) {}
+            return null;
+        }
 
         function getToiletCooldownKey(toilet) {
             if (!toilet) return '';
@@ -736,6 +1034,8 @@
         }
 
         function getRemainingCooldownMs(toilet) {
+            // 已登入使用者不套用 10 分鐘鎖頭，而是改為「編輯舊評鑑」模式
+            if (getActiveLoggedInUser()) return 0;
             const key = getToiletCooldownKey(toilet);
             if (!key) return 0;
             const map = getCooldownMap();
@@ -754,6 +1054,12 @@
             if (state.cooldownTimerId) {
                 clearInterval(state.cooldownTimerId);
                 state.cooldownTimerId = null;
+            }
+
+            // 已登入使用者不顯示鎖頭彈窗（改為編輯原本的舊評鑑）
+            if (getActiveLoggedInUser()) {
+                lockModal.classList.add('hidden');
+                return;
             }
 
             const checkAndRefresh = () => {
@@ -778,6 +1084,133 @@
             }
         }
 
+        let userEvalsUnsubscribe = null;
+        let userProfileBgUnsubscribe = null;
+        let userRedeemBgUnsubscribe = null;
+
+        function subscribeLoggedInUserEvaluations(uid) {
+            if (!db || !uid) return;
+            loadUnlockedBackgroundsFromCache(uid);
+            applySelectedBackgroundToSvg();
+            renderCardBackgroundSelector();
+
+            if (userEvalsUnsubscribe) userEvalsUnsubscribe();
+            userEvalsUnsubscribe = db.collection('evaluations')
+                .where('userId', '==', uid)
+                .onSnapshot((snap) => {
+                    state.userExistingEvalsByName.clear();
+                    snap.forEach((doc) => {
+                        const data = doc.data() || {};
+                        const tName = (data.name || '').trim();
+                        if (tName) {
+                            state.userExistingEvalsByName.set(tName, { docId: doc.id, ...data });
+                        }
+                    });
+                    if (state.currentToilet) {
+                        applyExistingEvaluationIfLoggedIn(state.currentToilet);
+                    }
+                }, () => {});
+
+            if (userProfileBgUnsubscribe) userProfileBgUnsubscribe();
+            userProfileBgUnsubscribe = db.collection('user_profiles').doc(uid)
+                .onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const data = doc.data() || {};
+                        if (Array.isArray(data.unlockedBackgrounds)) {
+                            data.unlockedBackgrounds.forEach(id => state.unlockedBgIds.add(id));
+                            try {
+                                localStorage.setItem(`poogle_unlocked_bgs_${uid}`, JSON.stringify(Array.from(state.unlockedBgIds)));
+                            } catch (e) {}
+                            renderCardBackgroundSelector();
+                        }
+                    }
+                }, () => {});
+
+            if (userRedeemBgUnsubscribe) userRedeemBgUnsubscribe();
+            userRedeemBgUnsubscribe = db.collection('redemptions')
+                .where('userId', '==', uid)
+                .onSnapshot((snap) => {
+                    snap.forEach((doc) => {
+                        const d = doc.data() || {};
+                        if (d.itemId && String(d.itemId).startsWith('bg_')) {
+                            state.unlockedBgIds.add(d.itemId);
+                        }
+                    });
+                    try {
+                        localStorage.setItem(`poogle_unlocked_bgs_${uid}`, JSON.stringify(Array.from(state.unlockedBgIds)));
+                    } catch (e) {}
+                    renderCardBackgroundSelector();
+                }, () => {});
+        }
+
+        async function applyExistingEvaluationIfLoggedIn(toilet) {
+            const activeUser = getActiveLoggedInUser();
+            const editBanner = document.getElementById('editExistingEvalBanner');
+            const commentInput = document.getElementById('commentInput');
+            const commentReceivedHint = document.getElementById('commentReceivedHint');
+
+            if (!activeUser || !toilet) {
+                state.editingExistingEval = null;
+                if (editBanner) editBanner.classList.add('hidden');
+                return;
+            }
+
+            const tName = (toilet.name || '').trim();
+            let existing = state.userExistingEvalsByName.get(tName) || null;
+
+            if (!existing && db && activeUser.uid) {
+                try {
+                    const snap = await db.collection('evaluations')
+                        .where('userId', '==', activeUser.uid)
+                        .get();
+                    snap.forEach((doc) => {
+                        const d = doc.data() || {};
+                        const nameKey = (d.name || '').trim();
+                        if (nameKey) {
+                            state.userExistingEvalsByName.set(nameKey, { docId: doc.id, ...d });
+                        }
+                    });
+                    existing = state.userExistingEvalsByName.get(tName) || null;
+                } catch (e) {}
+            }
+
+            if (existing) {
+                state.editingExistingEval = existing;
+                const rt = existing.ratings || {};
+                state.ratings = {
+                    space: Number(rt.space ?? existing.stars ?? 3),
+                    smell: Number(rt.smell ?? existing.stars ?? 3),
+                    lighting: Number(rt.lighting ?? existing.stars ?? 3),
+                    cleanliness: Number(rt.cleanliness ?? existing.stars ?? 3)
+                };
+                state.savedComment = existing.comment || '';
+                if (commentInput) {
+                    commentInput.value = existing.comment || '';
+                    commentInput.classList.remove('hidden');
+                }
+                if (commentReceivedHint) {
+                    commentReceivedHint.classList.add('hidden');
+                }
+                if (editBanner) editBanner.classList.remove('hidden');
+                renderAllStarRows();
+                updateToiletCardVisuals();
+            } else {
+                state.editingExistingEval = null;
+                state.ratings = { space: 3, smell: 3, lighting: 3, cleanliness: 3 };
+                state.savedComment = '';
+                if (commentInput) {
+                    commentInput.value = '';
+                    commentInput.classList.remove('hidden');
+                }
+                if (commentReceivedHint) {
+                    commentReceivedHint.classList.add('hidden');
+                }
+                if (editBanner) editBanner.classList.add('hidden');
+                renderAllStarRows();
+                updateToiletCardVisuals();
+            }
+        }
+
         // 監聽並同步 Google 登入狀態
         if (auth) {
             auth.onAuthStateChanged((user) => {
@@ -791,8 +1224,14 @@
                             photoURL: user.photoURL || ''
                         }));
                     } catch (e) {}
+                    subscribeLoggedInUserEvaluations(user.uid);
                 } else {
-                    state.currentUser = null;
+                    const cached = getActiveLoggedInUser();
+                    if (cached && cached.uid) {
+                        subscribeLoggedInUserEvaluations(cached.uid);
+                    } else {
+                        state.currentUser = null;
+                    }
                 }
             });
         }
@@ -822,21 +1261,57 @@
 
         function loadCachedDatasetFromIDB() {
             return new Promise((resolve) => {
+                let settled = false;
+                const done = (val) => {
+                    if (!settled) {
+                        settled = true;
+                        resolve(val);
+                    }
+                };
+                const timer = setTimeout(() => done(null), 1500);
                 try {
                     const req = indexedDB.open(MAP_IDB_NAME, 1);
                     req.onupgradeneeded = (e) => {
-                        const idb = e.target.result;
-                        if (!idb.objectStoreNames.contains(MAP_IDB_STORE)) idb.createObjectStore(MAP_IDB_STORE);
+                        try {
+                            const idb = e.target.result;
+                            if (!idb.objectStoreNames.contains(MAP_IDB_STORE)) idb.createObjectStore(MAP_IDB_STORE);
+                        } catch (err) {}
                     };
                     req.onsuccess = () => {
-                        const idb = req.result;
-                        const tx = idb.transaction(MAP_IDB_STORE, 'readonly');
-                        const getReq = tx.objectStore(MAP_IDB_STORE).get('main_csv_dataset');
-                        getReq.onsuccess = () => resolve(getReq.result || null);
-                        getReq.onerror = () => resolve(null);
+                        try {
+                            const idb = req.result;
+                            if (!idb.objectStoreNames.contains(MAP_IDB_STORE)) {
+                                clearTimeout(timer);
+                                done(null);
+                                return;
+                            }
+                            const tx = idb.transaction(MAP_IDB_STORE, 'readonly');
+                            const getReq = tx.objectStore(MAP_IDB_STORE).get('main_csv_dataset');
+                            getReq.onsuccess = () => {
+                                clearTimeout(timer);
+                                done(getReq.result || null);
+                            };
+                            getReq.onerror = () => {
+                                clearTimeout(timer);
+                                done(null);
+                            };
+                        } catch (err) {
+                            clearTimeout(timer);
+                            done(null);
+                        }
                     };
-                    req.onerror = () => resolve(null);
-                } catch (err) { resolve(null); }
+                    req.onerror = () => {
+                        clearTimeout(timer);
+                        done(null);
+                    };
+                    req.onblocked = () => {
+                        clearTimeout(timer);
+                        done(null);
+                    };
+                } catch (err) {
+                    clearTimeout(timer);
+                    done(null);
+                }
             });
         }
 
@@ -1018,17 +1493,58 @@
         function selectToiletForRating(toilet) {
             state.currentToilet = toilet;
             document.getElementById('toiletNameHeading').textContent = toilet.name || '公廁名稱';
-            const distStr = Number.isFinite(toilet.distance) ? `（距離 ${toilet.distance.toFixed(1)}m）` : '';
-            document.getElementById('toiletManagerText').textContent = `管理單位：${toilet.exec || '各管理單位'} ${distStr}`;
-            document.getElementById('toiletAddressOrPhoneText').textContent = `地址：${toilet.address || '詳見建檔資料'}`;
+            document.getElementById('toiletManagerText').textContent = `管理單位：${toilet.exec || '環境管理單位'}`;
+            const distText = Number.isFinite(toilet.distance) ? `（距離您約 ${toilet.distance.toFixed(1)}m）` : '';
+            document.getElementById('toiletAddressOrPhoneText').textContent = `地址：${toilet.address || '無詳細地址'} ${distText}`;
+
+            const activeUser = getActiveLoggedInUser();
+            loadUnlockedBackgroundsFromCache(activeUser ? activeUser.uid : null);
+            applySelectedBackgroundToSvg();
+            renderCardBackgroundSelector();
+
+            renderAllStarRows();
+            updateToiletCardVisuals();
+            applyExistingEvaluationIfLoggedIn(toilet);
 
             document.getElementById('locatingStage').classList.add('hidden');
             document.getElementById('locateFailedStage').classList.add('hidden');
             document.getElementById('ratingStage').classList.remove('hidden');
 
-            renderAllStarRows();
-            updateToiletCardVisuals();
             updateCooldownLockUI();
+        }
+
+        function requestUserCoordinatesWithFallback() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('NO_GEOLOCATION'));
+                    return;
+                }
+
+                let settled = false;
+                const finishSuccess = (pos) => {
+                    if (settled) return;
+                    settled = true;
+                    resolve(pos);
+                };
+                const finishError = (err) => {
+                    if (settled) return;
+                    settled = true;
+                    reject(err);
+                };
+
+                // 先嘗試高精準度定位 (5.5 秒)，若在室內或電腦無 GPS 硬體逾時，立即切換為一般網路定位備援
+                navigator.geolocation.getCurrentPosition(
+                    finishSuccess,
+                    () => {
+                        navigator.geolocation.getCurrentPosition(
+                            finishSuccess,
+                            finishError,
+                            { enableHighAccuracy: false, timeout: 6000, maximumAge: 30000 }
+                        );
+                    },
+                    { enableHighAccuracy: true, timeout: 5500, maximumAge: 10000 }
+                );
+            });
         }
 
         async function startLocatingWorkflow() {
@@ -1042,57 +1558,66 @@
             locateFailedStage.classList.add('hidden');
             ratingStage.classList.add('hidden');
 
-            progressBar.style.width = '18%';
-            setTimeout(() => { progressBar.style.width = '48%'; }, 250);
-            await ensureToiletDatasetLoaded();
-            setTimeout(() => { progressBar.style.width = '78%'; }, 600);
+            progressBar.style.width = '22%';
+            const progressTimer1 = setTimeout(() => { progressBar.style.width = '55%'; }, 250);
+            const progressTimer2 = setTimeout(() => { progressBar.style.width = '82%'; }, 700);
 
             if (!navigator.geolocation) {
+                clearTimeout(progressTimer1);
+                clearTimeout(progressTimer2);
                 setTimeout(() => {
                     locatingStage.classList.add('hidden');
-                    failedReason.textContent = '您的瀏覽器不支援網路 GPS 定位功能，請改用支援定位的瀏覽器或點擊下方按鈕測試。';
+                    failedReason.textContent = '您的瀏覽器不支援網路定位功能，請改用支援定位的瀏覽器或點擊下方按鈕測試。';
                     locateFailedStage.classList.remove('hidden');
-                }, 900);
+                }, 600);
                 return;
             }
 
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    progressBar.style.width = '100%';
-                    state.userLat = pos.coords.latitude;
-                    state.userLng = pos.coords.longitude;
+            try {
+                // 平行執行「網路定位」與「讀取全國公廁資料庫」，避免等待大檔案下載導致定位無反應
+                const [pos] = await Promise.all([
+                    requestUserCoordinatesWithFallback(),
+                    ensureToiletDatasetLoaded()
+                ]);
 
-                    if (state.allToilets.length > 0) {
-                        state.allToilets.forEach(t => {
-                            t.distance = calculateDistanceMeters(state.userLat, state.userLng, t.lat, t.lng);
-                        });
-                        state.nearbyToilets = [...state.allToilets].sort((a, b) => a.distance - b.distance);
-                    }
+                clearTimeout(progressTimer1);
+                clearTimeout(progressTimer2);
+                progressBar.style.width = '100%';
 
-                    const nearest = state.nearbyToilets[0];
-                    setTimeout(() => {
-                        if (nearest && nearest.distance <= 100.0) {
-                            selectToiletForRating(nearest);
-                        } else if (nearest) {
-                            locatingStage.classList.add('hidden');
-                            failedReason.innerHTML = `您目前距離最近的公廁「<strong>${escapeHtml(nearest.name)}</strong>」約 <strong>${Math.round(nearest.distance)} 公尺</strong>，需在公廁 <strong>100 公尺內</strong>才可進行實地評鑑！`;
-                            locateFailedStage.classList.remove('hidden');
-                        } else {
-                            locatingStage.classList.add('hidden');
-                            failedReason.textContent = '目前附近 100 公尺內沒有偵測到可評鑑的公廁。';
-                            locateFailedStage.classList.remove('hidden');
-                        }
-                    }, 650);
-                },
-                (err) => {
-                    setTimeout(() => {
+                state.userLat = pos.coords.latitude;
+                state.userLng = pos.coords.longitude;
+
+                if (state.allToilets.length > 0) {
+                    state.allToilets.forEach(t => {
+                        t.distance = calculateDistanceMeters(state.userLat, state.userLng, t.lat, t.lng);
+                    });
+                    state.nearbyToilets = [...state.allToilets].sort((a, b) => a.distance - b.distance);
+                }
+
+                const nearest = state.nearbyToilets[0];
+                setTimeout(() => {
+                    if (nearest && nearest.distance <= 100.0) {
+                        selectToiletForRating(nearest);
+                    } else if (nearest) {
                         locatingStage.classList.add('hidden');
-                        failedReason.textContent = '目前附近 100 公尺內沒有偵測到可評鑑的公廁，請確認已開啟位置權限或點擊下方按鈕重新定位。';
+                        failedReason.innerHTML = `您目前距離最近的公廁「<strong>${escapeHtml(nearest.name)}</strong>」約 <strong>${Math.round(nearest.distance)} 公尺</strong>，需在公廁 <strong>100 公尺內</strong>才可進行實地評鑑！`;
                         locateFailedStage.classList.remove('hidden');
-                    }, 900);
-                },
-                { enableHighAccuracy: true, timeout: 9000, maximumAge: 0 }
-            );
+                    } else {
+                        locatingStage.classList.add('hidden');
+                        failedReason.textContent = '目前附近 100 公尺內沒有偵測到可評鑑的公廁。';
+                        locateFailedStage.classList.remove('hidden');
+                    }
+                }, 350);
+            } catch (err) {
+                clearTimeout(progressTimer1);
+                clearTimeout(progressTimer2);
+                progressBar.style.width = '100%';
+                setTimeout(() => {
+                    locatingStage.classList.add('hidden');
+                    failedReason.textContent = '目前附近 100 公尺內沒有偵測到可評鑑的公廁，請確認已允許瀏覽器位置權限或點擊下方按鈕重新定位。';
+                    locateFailedStage.classList.remove('hidden');
+                }, 350);
+            }
         }
 
         // Save directly to Firebase Cloud Firestore (with 4s timeout guard)
@@ -1180,14 +1705,18 @@
                 switchList.innerHTML = filtered.map((t, i) => {
                     const distBadge = `${t.distance.toFixed(1)}m`;
                     const isCurrent = state.currentToilet && state.currentToilet.name === t.name && state.currentToilet.address === t.address;
+                    const activeUser = getActiveLoggedInUser();
+                    const hasExistingEval = activeUser && state.userExistingEvalsByName.has((t.name || '').trim());
                     const remMs = getRemainingCooldownMs(t);
-                    const lockBadge = remMs > 0
-                        ? `<span class="text-[11px] text-[#E05244] font-bold ml-1"><i class="fa-solid fa-lock mr-0.5"></i>${Math.max(1, Math.ceil(remMs / 60000))}分後可評</span>`
-                        : '';
+                    const statusBadge = hasExistingEval
+                        ? `<span class="text-[11px] text-[#1E2270] bg-[#FFF57E] px-2 py-0.5 rounded-full border border-[#1E2270] font-bold ml-1"><i class="fa-solid fa-pen mr-0.5"></i>編輯舊評鑑</span>`
+                        : (remMs > 0
+                            ? `<span class="text-[11px] text-[#E05244] font-bold ml-1"><i class="fa-solid fa-lock mr-0.5"></i>${Math.max(1, Math.ceil(remMs / 60000))}分後可評</span>`
+                            : '');
                     return `
                         <button type="button" data-switch-idx="${i}" class="w-full text-left p-3 rounded-2xl ${isCurrent ? 'bg-[#FFF57E]' : 'bg-white hover:bg-[#FFF57E]'} border border-[#1E2270] transition flex items-center justify-between gap-2">
                             <div class="min-w-0">
-                                <div class="font-bold text-black text-xs sm:text-sm truncate">${escapeHtml(t.name)} ${isCurrent ? '<span class="text-[11px] text-[#1E2270]">(目前選取)</span>' : ''}${lockBadge}</div>
+                                <div class="font-bold text-black text-xs sm:text-sm truncate">${escapeHtml(t.name)} ${isCurrent ? '<span class="text-[11px] text-[#1E2270]">(目前選取)</span>' : ''}${statusBadge}</div>
                                 <div class="text-[11px] text-neutral-600 truncate">${escapeHtml(t.address)}</div>
                             </div>
                             <span class="px-2.5 py-1 rounded-full bg-[#72D0FF] border border-[#1E2270] text-black font-bold text-[11px] shrink-0">${distBadge}</span>
@@ -1274,6 +1803,15 @@
                 if (e.target === confirmLeaveModal) confirmLeaveModal.classList.add('hidden');
             });
 
+            // 未解鎖背景提示彈窗關閉事件
+            const lockedBgModal = document.getElementById('lockedBgModal');
+            document.getElementById('closeLockedBgModalBtn').addEventListener('click', () => {
+                lockedBgModal.classList.add('hidden');
+            });
+            lockedBgModal.addEventListener('click', (e) => {
+                if (e.target === lockedBgModal) lockedBgModal.classList.add('hidden');
+            });
+
             const finishBtn = document.getElementById('finishRatingBtn');
             finishBtn.addEventListener('click', async () => {
                 finishBtn.disabled = true;
@@ -1285,11 +1823,7 @@
                     const avgStars = Number(((state.ratings.space + state.ratings.smell + state.ratings.lighting + state.ratings.cleanliness) / 4).toFixed(1));
                     
                     // 自動抓取登入的 Google 帳號資訊 (結合 Firebase Auth 與跨頁快取，若未登入則使用匿名公廁探險家)
-                    let cachedUser = null;
-                    try {
-                        cachedUser = JSON.parse(localStorage.getItem('poogle_auth_user') || 'null');
-                    } catch (e) {}
-                    const currentUser = (auth && auth.currentUser) ? auth.currentUser : (state.currentUser || cachedUser);
+                    const currentUser = getActiveLoggedInUser();
                     const nickname = (currentUser && currentUser.displayName) ? currentUser.displayName : '匿名公廁探險家';
                     const userId = (currentUser && currentUser.uid) ? currentUser.uid : null;
                     const userPhoto = (currentUser && currentUser.photoURL) ? currentUser.photoURL : null;
@@ -1300,7 +1834,7 @@
                     let anonBgColor = null;
                     if (userId) {
                         try {
-                            avatarType = localStorage.getItem(`poogle_avatar_${userId}`) || (cachedUser && cachedUser.avatarType) || 'red_toilet';
+                            avatarType = localStorage.getItem(`poogle_avatar_${userId}`) || currentUser.avatarType || 'red_toilet';
                         } catch (e) {}
                         if (db) {
                             try {
@@ -1315,7 +1849,11 @@
                         anonBgColor = ANON_COLORS[Math.floor(Math.random() * ANON_COLORS.length)];
                     }
 
-                    const evalId = `eval_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+                    // 若已登入且曾經評鑑過同一間公廁，強制使用原有的 evalId / docId 覆蓋更新舊評鑑，不新增新紀錄
+                    const isEditingExisting = Boolean(userId && state.editingExistingEval);
+                    const evalId = isEditingExisting
+                        ? (state.editingExistingEval.docId || state.editingExistingEval.evalId)
+                        : `eval_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
                     
                     const recordToSave = {
                         evalId,
@@ -1328,6 +1866,7 @@
                         userPhoto,
                         avatarType,
                         anonBgColor,
+                        cardBackground: state.selectedBgId || 'bg_classic',
                         stars: avgStars,
                         ratings: { ...state.ratings },
                         comment: userComment,
@@ -1337,30 +1876,35 @@
 
                     const syncedToCloud = await saveEvaluationRecord(recordToSave);
 
-                    // 若已登入，同步將公德點數 (+1) 與總回報次數 (+1) 更新至 Firebase 後台 user_profiles 集合
-                    if (db && userId) {
+                    // 唯有「首次評鑑該公廁（非編輯舊評鑑）」時，才為已登入使用者增加公德點數 (+1) 與總回報次數 (+1)
+                    if (db && userId && !isEditingExisting) {
                         try {
                             const userProfRef = db.collection('user_profiles').doc(userId);
                             const profSnap = await userProfRef.get();
-                            if (profSnap.exists && typeof profSnap.data()?.meritPoints === 'number') {
-                                const pData = profSnap.data();
-                                await userProfRef.set({
-                                    userId,
-                                    displayName: nickname,
-                                    email: (currentUser && currentUser.email) ? currentUser.email : '',
-                                    meritPoints: Math.max(0, (Number(pData.meritPoints) || 0) + 1),
-                                    totalReports: Math.max(0, (Number(pData.totalReports) || 0) + 1),
-                                    _rawEvalCount: (Number(pData._rawEvalCount) || 0) + 1,
-                                    updatedAt: new Date().toISOString()
-                                }, { merge: true });
-                            }
+                            const pData = profSnap.exists ? (profSnap.data() || {}) : {};
+                            const currentMerit = typeof pData.meritPoints === 'number' ? pData.meritPoints : 0;
+                            const currentTotalReports = typeof pData.totalReports === 'number' ? pData.totalReports : 0;
+                            const currentRawEval = typeof pData._rawEvalCount === 'number' ? pData._rawEvalCount : 0;
+
+                            await userProfRef.set({
+                                userId,
+                                displayName: nickname,
+                                email: (currentUser && currentUser.email) ? currentUser.email : (pData.email || ''),
+                                avatarType: pData.avatarType || avatarType || 'red_toilet',
+                                meritPoints: Math.max(0, currentMerit + 1),
+                                totalReports: Math.max(0, currentTotalReports + 1),
+                                _rawEvalCount: Math.max(0, currentRawEval + 1),
+                                updatedAt: new Date().toISOString()
+                            }, { merge: true });
                         } catch (e) {
                             console.warn('Update user_profiles counts warning:', e);
                         }
                     }
 
-                    // 記錄此公廁已完成評鑑的時間戳記，啟動 5 分鐘冷卻限制
-                    setToiletCooldownTimestamp(toilet);
+                    // 未登入（匿名）使用者記錄此公廁評鑑時間戳記，啟動 10 分鐘冷卻限制
+                    if (!userId) {
+                        setToiletCooldownTimestamp(toilet);
+                    }
 
                     const sourceSvg = document.getElementById('toiletCardSvg');
                     const clonedSvg = sourceSvg.cloneNode(true);
@@ -1382,7 +1926,21 @@
                     const yyyy = now.getFullYear();
                     const mm = String(now.getMonth() + 1).padStart(2, '0');
                     const dd = String(now.getDate()).padStart(2, '0');
-                    document.getElementById('finalCardDate').textContent = `${yyyy} - ${mm} - ${dd}`;
+                    const finalDateEl = document.getElementById('finalCardDate');
+                    finalDateEl.textContent = `${yyyy} - ${mm} - ${dd}`;
+
+                    const activeBgObj = CARD_BACKGROUNDS.find(b => b.id === state.selectedBgId) || CARD_BACKGROUNDS[0];
+                    if (activeBgObj.isDark) {
+                        finalNameEl.style.color = '#FFFFFF';
+                        finalNameEl.style.textShadow = '0 2px 0 #1E2270, 0 -1px 0 #1E2270, 2px 0 0 #1E2270, -2px 0 0 #1E2270';
+                        finalDateEl.style.color = '#FFF57E';
+                        finalDateEl.style.textShadow = '0 1.5px 0 #1E2270';
+                    } else {
+                        finalNameEl.style.color = '#000000';
+                        finalNameEl.style.textShadow = 'none';
+                        finalDateEl.style.color = '#000000';
+                        finalDateEl.style.textShadow = 'none';
+                    }
 
                     const commentNoteEl = document.getElementById('finalCardCommentNote');
                     const commentTextEl = document.getElementById('finalCardCommentText');
@@ -1474,7 +2032,8 @@
                         ctx.scale(scale, scale);
 
                         // 1. Fill base background & draw SVG card
-                        ctx.fillStyle = '#FCF6E8';
+                        const activeBgObj = CARD_BACKGROUNDS.find(b => b.id === state.selectedBgId) || CARD_BACKGROUNDS[0];
+                        ctx.fillStyle = activeBgObj.baseColor || '#FCF6E8';
                         ctx.fillRect(0, 0, width, height);
                         ctx.drawImage(img, 0, 0, width, height);
                         URL.revokeObjectURL(url);
@@ -1488,7 +2047,6 @@
                         ctx.rotate(-16 * Math.PI / 180);
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
-                        ctx.fillStyle = '#000000';
 
                         const nameLines = splitToiletNameAvoidSingleLastChar(toiletName, 8);
                         const longestLineLen = Math.max(...nameLines.map(l => Array.from(l).length), 1);
@@ -1499,12 +2057,30 @@
                         let startY = -(totalNameHeight / 2);
 
                         nameLines.forEach((line, idx) => {
-                            ctx.fillText(line, 0, startY + idx * nameLineHeight + nameLineHeight / 2);
+                            const lineY = startY + idx * nameLineHeight + nameLineHeight / 2;
+                            if (activeBgObj.isDark) {
+                                ctx.lineWidth = 6;
+                                ctx.strokeStyle = '#1E2270';
+                                ctx.strokeText(line, 0, lineY);
+                                ctx.fillStyle = '#FFFFFF';
+                            } else {
+                                ctx.fillStyle = '#000000';
+                            }
+                            ctx.fillText(line, 0, lineY);
                         });
 
                         // Date below toilet name
                         ctx.font = '500 22px "Inter", "Noto Sans TC", sans-serif';
-                        ctx.fillText(dateStr, 0, startY + totalNameHeight + 24);
+                        const dateY = startY + totalNameHeight + 24;
+                        if (activeBgObj.isDark) {
+                            ctx.lineWidth = 4;
+                            ctx.strokeStyle = '#1E2270';
+                            ctx.strokeText(dateStr, 0, dateY);
+                            ctx.fillStyle = '#FFF57E';
+                        } else {
+                            ctx.fillStyle = '#000000';
+                        }
+                        ctx.fillText(dateStr, 0, dateY);
                         ctx.restore();
 
                         // 3. Draw Pinned Comment Note if user left a comment

@@ -169,6 +169,14 @@
         </svg>
     </div>
 
+    <!-- Bottom-Right Small Admin Login Entrance -->
+    <button id="openAdminPortalBtn" type="button"
+            class="fixed bottom-3.5 right-4 z-30 poogle-pill-btn px-3 py-1.5 rounded-full bg-white/80 hover:bg-[#FFF57E] text-[#1E2270] text-xs font-extrabold flex items-center gap-1.5 opacity-70 hover:opacity-100 transition-all focus:outline-none"
+            title="管理員專用後台入口">
+        <i class="fa-solid fa-user-shield text-[11px]"></i>
+        <span>管理員</span>
+    </button>
+
     <!-- Full-Screen Responsive Vector Stage -->
     <main class="w-full h-full flex items-center justify-center overflow-hidden">
         <svg viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" class="w-full h-full max-w-full max-h-full">
@@ -354,22 +362,81 @@
             </button>
 
             <div class="flex items-center justify-center w-full my-auto">
-                <button id="startNetworkLocateBtn" type="button" class="group flex flex-col items-center justify-center gap-5 focus:outline-none">
+                <a id="startNetworkLocateBtn" href="./rating.html?mode=network" class="group flex flex-col items-center justify-center gap-5 focus:outline-none cursor-pointer no-underline">
                     <div class="w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center rounded-3xl group-hover:scale-105 group-hover:bg-[#FCF6E8] transition-all p-2">
-                        <svg viewBox="0 0 120 120" class="w-full h-full">
+                        <svg viewBox="0 0 120 120" class="w-full h-full pointer-events-none">
                             <path d="M 30 78 A 42 42 0 1 1 90 78" fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round" />
                             <path d="M 42 68 A 25 25 0 1 1 78 68" fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round" />
                             <circle cx="60" cy="52" r="8" fill="#000000" />
                             <path d="M 60 60 L 45 102 L 75 102 Z" fill="#000000" stroke="#000000" stroke-width="4" stroke-linejoin="round" />
                         </svg>
                     </div>
-                    <span class="text-lg sm:text-xl font-medium text-black tracking-wide group-hover:text-[#1E2270]">網路定位</span>
+                    <span id="startNetworkLocateText" class="text-lg sm:text-xl font-medium text-black tracking-wide group-hover:text-[#1E2270]">網路定位</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Portal Verification Modal -->
+    <div id="adminPortalModal" class="hidden fixed inset-0 z-50 bg-black/55 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#FCF6E8] rounded-[28px] max-w-sm w-full border-2 border-[#1E2270] shadow-[0_8px_0_#1E2270] overflow-hidden">
+            <div class="bg-[#FFF57E] border-b-2 border-[#1E2270] px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-user-shield text-[#1E2270]"></i>
+                    <h3 class="font-extrabold text-base text-black">管理員後台驗證</h3>
+                </div>
+                <button id="closeAdminPortalModalBtn" type="button" class="poogle-pill-btn w-8 h-8 rounded-full bg-white text-black flex items-center justify-center focus:outline-none">
+                    <i class="fa-solid fa-xmark"></i>
                 </button>
+            </div>
+            <div class="p-6 space-y-4 text-center">
+                <p id="adminPortalDesc" class="text-xs sm:text-sm text-neutral-700 font-bold leading-relaxed">
+                    僅限授權的管理員 Google 帳號可進入後台管理評論、用戶點數與檢舉審核。
+                </p>
+
+                <!-- 顯示目前登入帳號狀態 -->
+                <div id="adminCurrentAccountBox" class="hidden p-3.5 rounded-2xl bg-white border-[1.5px] border-[#1E2270] text-left space-y-1">
+                    <div class="text-[11px] font-bold text-neutral-500">目前登入的 Google 帳號：</div>
+                    <div id="adminCurrentEmailText" class="text-xs sm:text-sm font-extrabold text-black truncate"></div>
+                    <div id="adminPermissionBadge" class="inline-block text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border border-[#1E2270] mt-1"></div>
+                </div>
+
+                <!-- 權限不足提示框 -->
+                <div id="adminDeniedBox" class="hidden p-3.5 rounded-2xl bg-[#FF85D0]/35 border-[1.5px] border-[#1E2270] text-left text-xs space-y-1.5">
+                    <div class="font-extrabold text-black flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-xmark text-rose-600"></i>
+                        <span>此帳號無管理員權限</span>
+                    </div>
+                    <p class="text-neutral-800 leading-relaxed">
+                        請將上方信箱加入 <code>index.html</code> 與 <code>admin.html</code> 的 <code>ADMIN_ALLOWED_EMAILS</code> 清單中，或切換為已授權的 Google 帳號。
+                    </p>
+                </div>
+
+                <div class="flex flex-col gap-2.5 pt-1">
+                    <a id="enterAdminDashboardLink" href="./admin.html"
+                       class="hidden poogle-pill-btn w-full py-3 rounded-full bg-[#3CE6B0] hover:bg-[#2fd49f] text-black font-extrabold text-sm flex items-center justify-center gap-2 no-underline">
+                        <i class="fa-solid fa-gauge-high"></i>
+                        <span>進入管理員後台系統</span>
+                    </a>
+                    <button id="adminGoogleLoginBtn" type="button"
+                            class="poogle-pill-btn w-full py-3 rounded-full bg-white hover:bg-neutral-50 text-black font-extrabold text-sm flex items-center justify-center gap-2.5">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-4 h-4" />
+                        <span id="adminGoogleLoginBtnText">使用管理員 Google 帳號登入</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
+        // ===================================================================
+        // 🔐 管理員 Google 帳號白名單設定區
+        // 請在下方陣列中填入允許進入後台的 Google 信箱（大小寫皆可）
+        // ===================================================================
+        const ADMIN_ALLOWED_EMAILS = [
+            "eatdatcupcake1210@gmail.com"
+        ];
+
         const firebaseConfig = {
             apiKey: "AIzaSyCfUm1MLY9C3Q3ukfCrvxU5ypjpqCbvU2A",
             authDomain: "toilet-rating-grad-proj.firebaseapp.com",
@@ -627,6 +694,42 @@
 
                         syncAvatarFromStorageOrCloud(userObj);
 
+                        // 只要使用者登入 Google 帳號（即使沒有任何後續動作），立即在雲端 user_profiles 建檔記錄
+                        if (db && user.uid) {
+                            const userRef = db.collection('user_profiles').doc(user.uid);
+                            userRef.get().then((docSnap) => {
+                                const nowIso = new Date().toISOString();
+                                if (!docSnap.exists) {
+                                    userRef.set({
+                                        userId: user.uid,
+                                        displayName: user.displayName || 'Google 用戶',
+                                        email: user.email || '',
+                                        avatarType: chosenAvatar,
+                                        meritPoints: 0,
+                                        totalReports: 0,
+                                        _rawEvalCount: 0,
+                                        _rawSpentPoints: 0,
+                                         unlockedBackgrounds: ['bg_classic', 'bg_ocean_bubble', 'bg_peach_blossom'],
+                                        createdAt: nowIso,
+                                        lastLoginAt: nowIso,
+                                        updatedAt: nowIso
+                                    }, { merge: true }).catch(() => {});
+                                } else {
+                                    const existingData = docSnap.data() || {};
+                                    const updatePayload = {
+                                        userId: user.uid,
+                                        displayName: user.displayName || existingData.displayName || 'Google 用戶',
+                                        email: user.email || existingData.email || '',
+                                        lastLoginAt: nowIso
+                                    };
+                                    if (typeof existingData.meritPoints !== 'number') updatePayload.meritPoints = 0;
+                                    if (typeof existingData.totalReports !== 'number') updatePayload.totalReports = 0;
+                                    if (!existingData.avatarType) updatePayload.avatarType = chosenAvatar;
+                                    userRef.set(updatePayload, { merge: true }).catch(() => {});
+                                }
+                            }).catch(() => {});
+                        }
+
                         if (pendingPersonalSpaceRedirect) {
                             pendingPersonalSpaceRedirect = false;
                             window.location.href = './profile.html';
@@ -725,7 +828,8 @@
             });
 
             document.getElementById('startNetworkLocateBtn').addEventListener('click', () => {
-                window.location.href = './rating.html?mode=network';
+                const labelEl = document.getElementById('startNetworkLocateText');
+                if (labelEl) labelEl.textContent = '定位啟動中...';
             });
 
             // 3. 小怪圖鑑：播放音效並顯示「⚠️施工中⚠️」彈窗
@@ -772,6 +876,101 @@
             document.getElementById('closeLoginModalBtn').addEventListener('click', () => {
                 pendingPersonalSpaceRedirect = false;
                 document.getElementById('loginModal').classList.add('hidden');
+            });
+
+            // ===================================================================
+            // 右下角「管理員」入口與白名單驗證邏輯
+            // ===================================================================
+            let dynamicAdminEmails = new Set();
+            if (db) {
+                db.collection('admin_settings').doc('whitelist').onSnapshot((doc) => {
+                    dynamicAdminEmails.clear();
+                    if (doc.exists && Array.isArray(doc.data()?.emails)) {
+                        doc.data().emails.forEach(em => {
+                            if (em) dynamicAdminEmails.add(String(em).trim().toLowerCase());
+                        });
+                    }
+                }, () => {});
+            }
+
+            function isAuthorizedAdminEmail(email) {
+                if (!email) return false;
+                const clean = String(email).trim().toLowerCase();
+                const inStaticList = ADMIN_ALLOWED_EMAILS.some(e => String(e).trim().toLowerCase() === clean);
+                return inStaticList || dynamicAdminEmails.has(clean);
+            }
+
+            const adminPortalModal = document.getElementById('adminPortalModal');
+            const adminAccountBox = document.getElementById('adminCurrentAccountBox');
+            const adminEmailText = document.getElementById('adminCurrentEmailText');
+            const adminPermBadge = document.getElementById('adminPermissionBadge');
+            const adminDeniedBox = document.getElementById('adminDeniedBox');
+            const enterAdminLink = document.getElementById('enterAdminDashboardLink');
+            const adminGoogleBtn = document.getElementById('adminGoogleLoginBtn');
+            const adminGoogleBtnText = document.getElementById('adminGoogleLoginBtnText');
+
+            function refreshAdminModalUI() {
+                let activeUser = (auth && auth.currentUser) ? auth.currentUser : null;
+                if (!activeUser) {
+                    try {
+                        activeUser = JSON.parse(localStorage.getItem('poogle_auth_user') || 'null');
+                    } catch (e) {}
+                }
+
+                if (activeUser && activeUser.email) {
+                    adminAccountBox.classList.remove('hidden');
+                    adminEmailText.textContent = activeUser.email;
+                    const allowed = isAuthorizedAdminEmail(activeUser.email);
+
+                    if (allowed) {
+                        adminPermBadge.textContent = '✓ 已授權的管理員帳號';
+                        adminPermBadge.className = 'inline-block text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#3CE6B0] text-black border border-[#1E2270] mt-1';
+                        adminDeniedBox.classList.add('hidden');
+                        enterAdminLink.classList.remove('hidden');
+                        adminGoogleBtnText.textContent = '切換其他 Google 帳號';
+                    } else {
+                        adminPermBadge.textContent = '✕ 非管理員白名單帳號';
+                        adminPermBadge.className = 'inline-block text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#FF85D0] text-black border border-[#1E2270] mt-1';
+                        adminDeniedBox.classList.remove('hidden');
+                        enterAdminLink.classList.add('hidden');
+                        adminGoogleBtnText.textContent = '切換為管理員 Google 帳號登入';
+                    }
+                } else {
+                    adminAccountBox.classList.add('hidden');
+                    adminDeniedBox.classList.add('hidden');
+                    enterAdminLink.classList.add('hidden');
+                    adminGoogleBtnText.textContent = '使用管理員 Google 帳號登入';
+                }
+            }
+
+            document.getElementById('openAdminPortalBtn').addEventListener('click', () => {
+                refreshAdminModalUI();
+                adminPortalModal.classList.remove('hidden');
+            });
+
+            document.getElementById('closeAdminPortalModalBtn').addEventListener('click', () => {
+                adminPortalModal.classList.add('hidden');
+            });
+
+            adminPortalModal.addEventListener('click', (e) => {
+                if (e.target === adminPortalModal) adminPortalModal.classList.add('hidden');
+            });
+
+            adminGoogleBtn.addEventListener('click', async () => {
+                if (!auth) return;
+                const provider = new firebase.auth.GoogleAuthProvider();
+                provider.setCustomParameters({ prompt: 'select_account' });
+                try {
+                    const result = await auth.signInWithPopup(provider);
+                    if (result && result.user) {
+                        refreshAdminModalUI();
+                        if (isAuthorizedAdminEmail(result.user.email)) {
+                            window.location.href = './admin.html';
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Admin Google login error:', err);
+                }
             });
         });
     </script>

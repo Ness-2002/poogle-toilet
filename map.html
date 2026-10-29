@@ -17,6 +17,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 
     <style>
         :root {
@@ -87,6 +88,25 @@
         .gps-pulse-ring {
             animation: pulseRing 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
         }
+        /* Fix Leaflet Popup overflow bug on first open */
+        .leaflet-popup-content-wrapper {
+            border-radius: 22px !important;
+            border: 2px solid #18181B !important;
+            box-shadow: 0 5px 0 #18181B !important;
+            padding: 0 !important;
+            background-color: #FFFFFF !important;
+            overflow: hidden !important;
+        }
+        .leaflet-popup-content {
+            margin: 14px 16px !important;
+            width: 256px !important;
+            max-width: calc(100vw - 64px) !important;
+            box-sizing: border-box !important;
+        }
+        .leaflet-popup-tip {
+            background: #FFFFFF !important;
+            border: 1.5px solid #18181B !important;
+        }
     </style>
 </head>
 
@@ -151,7 +171,7 @@
                 <div class="flex items-center gap-1.5 flex-wrap">
                     <button id="locateMeBtn" type="button" class="poogle-pill-btn inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#72D0FF] text-black text-xs font-bold">
                         <i class="fa-solid fa-location-crosshairs"></i>
-                        <span>偵測附近公廁</span>
+                        <span id="locateMeBtnText">偵測附近公廁</span>
                     </button>
                     <div class="inline-flex items-center bg-white border-[1.5px] border-[#18181B] rounded-full p-0.5 text-[11px]">
                         <button type="button" data-radius="0" class="radius-btn px-2 py-0.5 rounded-full font-medium text-neutral-700 hover:text-black transition">
@@ -194,16 +214,25 @@
                         </select>
                         <i class="fa-solid fa-caret-down text-[10px] text-black pointer-events-none absolute right-2"></i>
                     </div>
+                    <div class="relative inline-flex items-center shrink-0">
+                        <select id="starFilterSelect" aria-label="星等篩選"
+                                class="poogle-pill-btn appearance-none pl-2.5 pr-6 py-0.5 rounded-full bg-[#3CE6B0] hover:bg-[#2fd49f] text-black font-bold text-[11px] cursor-pointer focus:outline-none">
+                            <option value="all">所有星等</option>
+                            <option value="5">5 星 (5.0★)</option>
+                            <option value="4">4 星 (4.0~4.9★)</option>
+                            <option value="3">3 星 (3.0~3.9★)</option>
+                            <option value="2">2 星 (2.0~2.9★)</option>
+                            <option value="1">1 星 (1.0~1.9★)</option>
+                            <option value="unrated">尚未評鑑</option>
+                        </select>
+                        <i class="fa-solid fa-caret-down text-[10px] text-black pointer-events-none absolute right-2"></i>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2 shrink-0 text-[11px]">
                     <span id="nearby100mBadge" class="px-2 py-0.5 rounded-full bg-[#FF85D0] border border-[#18181B] text-black font-bold">
                         附近 100m：0 間
                     </span>
                 </div>
-            </div>
-
-            <div class="px-3.5 py-1 bg-[#FCF6E8] border-b border-[#18181B]/15 flex items-center justify-between text-[11px] text-neutral-700 shrink-0">
-                <span id="gpsText" class="truncate">正在自動匯入同資料夾《全國公廁建檔資料.csv》...</span>
             </div>
 
             <div id="toiletListContainer" class="flex-1 overflow-y-auto p-2.5 space-y-2">
@@ -241,6 +270,10 @@
                     <span id="mapViewportCount" class="px-1.5 py-0.5 rounded-full bg-[#FFF57E] border border-[#18181B] text-[10px] font-bold">視野 0 間</span>
                 </div>
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-neutral-800 pt-0.5">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-[#18181B] border-2 border-[#FF85D0] inline-block"></span>
+                        <span><strong>目前位置</strong></span>
+                    </div>
                     <div class="flex items-center gap-1.5">
                         <span class="w-3 h-3 rounded-full bg-[#FF85D0] border border-[#18181B] inline-block"></span>
                         <span><strong>≤ 100m</strong> 附近公廁</span>
@@ -290,6 +323,59 @@
         </div>
     </div>
 
+    <!-- =================================================================== -->
+    <!-- MODAL: REPORT COMMENT FOR MANUAL ADMIN REVIEW                       -->
+    <!-- =================================================================== -->
+    <div id="reportCommentModal" class="hidden fixed inset-0 z-[680] bg-black/55 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#FCF6E8] rounded-[28px] max-w-md w-full border-2 border-[#18181B] shadow-[0_8px_0_#18181B] overflow-hidden flex flex-col">
+            <div class="bg-[#FF85D0] border-b-2 border-[#18181B] px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-flag text-[#18181B]"></i>
+                    <h3 class="font-extrabold text-base text-black">檢舉不當留言（人工審核）</h3>
+                </div>
+                <button id="closeReportModalBtn" type="button" class="poogle-pill-btn w-8 h-8 rounded-full bg-white text-black flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4 text-xs sm:text-sm">
+                <div class="p-3 rounded-2xl bg-white border-[1.5px] border-[#18181B] space-y-1">
+                    <div class="text-[11px] font-bold text-neutral-500">被檢舉的留言內容：</div>
+                    <p id="reportTargetCommentText" class="font-bold text-black break-words"></p>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="reportReasonSelect" class="block font-extrabold text-black text-xs">請選擇檢舉原因：</label>
+                    <select id="reportReasonSelect" class="w-full px-3.5 py-2.5 rounded-2xl bg-white border-[1.5px] border-[#18181B] font-bold text-black text-xs sm:text-sm focus:outline-none">
+                        <option value="不雅字眼或人身攻擊">不雅字眼或人身攻擊</option>
+                        <option value="垃圾廣告或洗版訊息">垃圾廣告或洗版訊息</option>
+                        <option value="與此公廁無關之內容">與此公廁無關之內容</option>
+                        <option value="不實或誤導資訊">不實或誤導資訊</option>
+                        <option value="其他原因">其他原因</option>
+                    </select>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="reportNoteInput" class="block font-extrabold text-black text-xs">補充說明（選填）：</label>
+                    <textarea id="reportNoteInput" rows="2" placeholder="可填寫具體情況供管理員人工審核參考..."
+                              class="w-full p-3 rounded-2xl bg-white border-[1.5px] border-[#18181B] text-xs sm:text-sm text-black placeholder-neutral-400 resize-none focus:outline-none"></textarea>
+                </div>
+
+                <p class="text-[11px] text-neutral-600 leading-relaxed">
+                    💡 送出後將交由管理員於後台進行<strong>人工審核</strong>，經確認違規後才會移除該則留言。
+                </p>
+
+                <div class="flex items-center justify-end gap-2.5 pt-1">
+                    <button id="cancelReportBtn" type="button" class="poogle-pill-btn px-5 py-2 rounded-full bg-white text-black font-bold text-xs sm:text-sm">
+                        取消
+                    </button>
+                    <button id="submitReportBtn" type="button" class="poogle-pill-btn px-5 py-2 rounded-full bg-[#FFF57E] hover:bg-[#f7eb5e] text-black font-extrabold text-xs sm:text-sm">
+                        送出檢舉
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Box -->
     <div id="toastBox" class="fixed bottom-5 right-5 z-[700] hidden max-w-sm bg-[#FFF57E] text-black px-4 py-3 rounded-2xl border-2 border-[#18181B] shadow-[0_5px_0_#18181B] flex items-center gap-3 text-xs sm:text-sm transition-all">
         <i id="toastIcon" class="fa-solid fa-circle-info text-black text-base"></i>
@@ -312,13 +398,26 @@
         };
 
         let db = null;
+        let auth = null;
         try {
             if (!firebase.apps.length) {
                 firebase.initializeApp(firebaseConfig);
             }
             db = firebase.firestore();
+            auth = firebase.auth();
         } catch (err) {
             console.warn('Firebase Cloud Firestore initialization warning:', err);
+        }
+
+        function getCurrentUserUid() {
+            if (auth && auth.currentUser && auth.currentUser.uid) {
+                return auth.currentUser.uid;
+            }
+            try {
+                const cached = JSON.parse(localStorage.getItem('poogle_auth_user') || 'null');
+                if (cached && cached.uid) return cached.uid;
+            } catch (e) {}
+            return null;
         }
 
         // 自動清除舊版殘留的本機測試評論快取，確保與 Firestore 後台 100% 一致
@@ -353,16 +452,19 @@
             countyToTowns: new Map(),
             reviewsByToiletName: new Map(),
             userAvatarByUid: new Map(),
+            userReviewCountByUid: new Map(),
+            profileTotalReportsByUid: new Map(),
+            pendingReportTarget: null,
             totalCloudReviews: 0,
             userLat: null,
             userLng: null,
-            userAccuracy: null,
             onlyReviewed: false,
             searchQuery: '',
             countyFilter: '',
             townFilter: '',
             typeFilter: '',
             ratingSort: 'default',
+            starFilter: 'all',
             radiusFilter: 100,
             currentPage: 1,
             pageSize: 80,
@@ -484,27 +586,55 @@
         // ===================================================================
         // REAL-TIME FIREBASE LISTENER FOR PUBLIC TOILET REVIEWS
         // ===================================================================
+        function getUserTotalReviewsCount(userId) {
+            if (!userId) return 0;
+            const fromEvals = state.userReviewCountByUid.get(userId) || 0;
+            const fromProfile = state.profileTotalReportsByUid.get(userId) || 0;
+            return Math.max(fromEvals, fromProfile);
+        }
+
         function mergeAndRebuildReviewsMap(cloudDocs = []) {
             state.reviewsByToiletName.clear();
+            state.userReviewCountByUid.clear();
             const seenKeys = new Set();
             let total = 0;
 
-            const addReviewItem = (data) => {
+            const uniqueDocs = [];
+            cloudDocs.forEach((data) => {
                 const tName = (data.name || '').trim();
                 if (!tName) return;
                 const uniqueKey = data.evalId || data.id || `${tName}_${data.createdAt || ''}_${data.nickname || ''}_${data.comment || ''}`;
                 if (seenKeys.has(uniqueKey)) return;
                 seenKeys.add(uniqueKey);
+                uniqueDocs.push(data);
 
+                // 統計每位已登入使用者的總評論數
+                const isAnon = !data.userId || !data.nickname || data.nickname === '熱心評鑑員' || data.nickname === '匿名' || data.nickname === '匿名公廁探險家';
+                if (!isAnon && data.userId) {
+                    state.userReviewCountByUid.set(data.userId, (state.userReviewCountByUid.get(data.userId) || 0) + 1);
+                }
+            });
+
+            uniqueDocs.forEach((data) => {
+                const tName = (data.name || '').trim();
                 if (!state.reviewsByToiletName.has(tName)) {
                     state.reviewsByToiletName.set(tName, []);
                 }
                 state.reviewsByToiletName.get(tName).push(data);
                 total++;
-            };
+            });
 
-            // 100% 以 Cloud Firestore 雲端資料為準
-            cloudDocs.forEach(addReviewItem);
+            // 針對每間公廁的評論排序：評論總數越多的使用者排在越前面，同數量則依最新時間排序
+            state.reviewsByToiletName.forEach((list) => {
+                list.sort((a, b) => {
+                    const countA = getUserTotalReviewsCount(a.userId);
+                    const countB = getUserTotalReviewsCount(b.userId);
+                    if (countB !== countA) {
+                        return countB - countA;
+                    }
+                    return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+                });
+            });
 
             state.totalCloudReviews = total;
             refreshDistancesAndRender();
@@ -516,12 +646,15 @@
                 return;
             }
 
-            // 監聽使用者頭貼設定，確保換頭貼後評論列表即時同步
+            // 監聽使用者頭貼設定與總回報數，確保換頭貼與評論總數排序即時同步
             db.collection('user_profiles').onSnapshot((snap) => {
                 snap.forEach((doc) => {
                     const d = doc.data();
                     if (d && d.avatarType) {
                         state.userAvatarByUid.set(doc.id, d.avatarType);
+                    }
+                    if (d && typeof d.totalReports === 'number') {
+                        state.profileTotalReportsByUid.set(doc.id, d.totalReports);
                     }
                 });
             }, () => {});
@@ -540,32 +673,34 @@
         }
 
         function getToiletReviewStats(toiletName) {
-            const list = state.reviewsByToiletName.get((toiletName || '').trim()) || [];
-            if (list.length === 0) return null;
+            const key = (toiletName || '').trim();
+            const reviews = state.reviewsByToiletName.get(key) || [];
+            if (reviews.length === 0) return null;
 
-            let sumOverall = 0, sumSpace = 0, sumSmell = 0, sumLighting = 0, sumClean = 0;
-            list.forEach(r => {
+            let sumSpace = 0, sumSmell = 0, sumLighting = 0, sumClean = 0, sumOverall = 0;
+            reviews.forEach((r) => {
                 const rt = r.ratings || {};
                 const sp = Number(rt.space ?? r.stars ?? 3);
                 const sm = Number(rt.smell ?? r.stars ?? 3);
                 const li = Number(rt.lighting ?? r.stars ?? 3);
                 const cl = Number(rt.cleanliness ?? r.stars ?? 3);
+                const ov = Number(r.stars ?? ((sp + sm + li + cl) / 4));
                 sumSpace += sp;
                 sumSmell += sm;
                 sumLighting += li;
                 sumClean += cl;
-                sumOverall += (sp + sm + li + cl) / 4;
+                sumOverall += ov;
             });
 
-            const count = list.length;
+            const count = reviews.length;
             return {
                 count,
-                avgOverall: (sumOverall / count).toFixed(1),
                 avgSpace: (sumSpace / count).toFixed(1),
                 avgSmell: (sumSmell / count).toFixed(1),
                 avgLighting: (sumLighting / count).toFixed(1),
                 avgCleanliness: (sumClean / count).toFixed(1),
-                reviews: list
+                avgOverall: (sumOverall / count).toFixed(1),
+                reviews
             };
         }
 
@@ -615,10 +750,10 @@
                             <span class="text-[11px] font-extrabold text-[#18181B]">共 ${stats.count} 則評鑑</span>
                         </div>
                         <div class="flex-1 w-full space-y-2">
-                            ${renderBar('空間大小', stats.avgSpace)}
-                            ${renderBar('氣味', stats.avgSmell)}
-                            ${renderBar('照明', stats.avgLighting)}
-                            ${renderBar('潔淨度', stats.avgCleanliness)}
+                            ${renderBar('空間寬敞度', stats.avgSpace)}
+                            ${renderBar('空氣清新度', stats.avgSmell)}
+                            ${renderBar('照明舒適度', stats.avgLighting)}
+                            ${renderBar('環境潔淨度', stats.avgCleanliness)}
                         </div>
                     </div>
                 `;
@@ -632,11 +767,24 @@
                     }
                 };
 
-                commentsList.innerHTML = stats.reviews.map((r, rIdx) => {
+                // 依照使用者總評論數由多到少排序（評論總數越多的使用者出現在越前面）
+                const sortedReviews = [...stats.reviews].sort((a, b) => {
+                    const totalA = getUserTotalReviewsCount(a.userId);
+                    const totalB = getUserTotalReviewsCount(b.userId);
+                    if (totalB !== totalA) return totalB - totalA;
+                    return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+                });
+                state.currentModalReviews = sortedReviews;
+                state.currentModalToiletName = toilet.name;
+                const currentUid = getCurrentUserUid();
+
+                commentsList.innerHTML = sortedReviews.map((r, rIdx) => {
                     const dateStr = r.createdAt ? r.createdAt.slice(0, 10) : '近期';
                     const rt = r.ratings || {};
                     const isAnon = !r.userId || !r.nickname || r.nickname === '熱心評鑑員' || r.nickname === '匿名' || r.nickname === '匿名公廁探險家';
                     const reviewerName = isAnon ? '匿名公廁探險家' : r.nickname;
+                    const userTotalCount = !isAnon ? getUserTotalReviewsCount(r.userId) : 0;
+                    const isOwnComment = Boolean(currentUid && r.userId && r.userId === currentUid);
 
                     let avatarBadgeHtml = '';
                     if (isAnon) {
@@ -662,21 +810,42 @@
                         `;
                     }
 
-                    const commentHtml = r.comment
-                        ? `<p class="text-black font-medium text-xs sm:text-sm mt-1.5 bg-white p-3 rounded-xl border border-[#18181B]/20 leading-relaxed">「${escapeHtml(r.comment)}」</p>`
+                    const totalReviewsTag = (!isAnon && userTotalCount > 0)
+                        ? `<span class="px-2 py-0.5 rounded-full bg-[#72D0FF]/45 border border-[#18181B] font-bold text-[10px] text-black">累積 ${userTotalCount} 則評鑑</span>`
+                        : '';
+
+                    const hasTextComment = Boolean(r.comment && String(r.comment).trim().length > 0);
+                    const reportBtnHtml = isOwnComment
+                        ? `<span class="px-2 py-0.5 rounded-full bg-[#FCF6E8] border border-[#18181B]/40 text-[10px] font-bold text-neutral-600 shrink-0">我的評論</span>`
+                        : (hasTextComment
+                            ? `<button type="button"
+                                       onclick="window.openReportCommentByIndex(${rIdx})"
+                                       class="poogle-pill-btn px-2 py-0.5 rounded-full bg-white hover:bg-[#FF85D0] text-[11px] font-bold text-neutral-700 hover:text-black flex items-center gap-1 shrink-0"
+                                       title="檢舉此則留言（將送交管理員人工審核）">
+                                   <i class="fa-regular fa-flag text-[10px]"></i>
+                                   <span>檢舉</span>
+                               </button>`
+                            : '');
+
+                    const commentHtml = hasTextComment
+                        ? `<p class="text-black font-medium text-xs sm:text-sm mt-1.5 bg-white p-3 rounded-xl border border-[#18181B]/20 leading-relaxed break-words">「${escapeHtml(r.comment)}」</p>`
                         : `<p class="text-neutral-400 text-xs mt-1 italic">（使用者僅提交星等評分，未留下文字）</p>`;
 
                     return `
                         <div class="p-3.5 rounded-2xl bg-white border-[1.5px] border-[#18181B] space-y-1">
-                            <div class="flex items-center justify-between gap-2">
-                                <div class="flex items-center gap-2">
+                            <div class="flex items-center justify-between gap-2 flex-wrap">
+                                <div class="flex items-center gap-1.5 flex-wrap min-w-0">
                                     ${avatarBadgeHtml}
-                                    <span class="font-extrabold text-black text-xs">${escapeHtml(reviewerName)}</span>
+                                    <span class="font-extrabold text-black text-xs truncate">${escapeHtml(reviewerName)}</span>
+                                    ${totalReviewsTag}
                                     <span class="px-2 py-0.5 rounded-full bg-[#FFF57E] border border-[#18181B] font-extrabold text-[11px] text-black">
                                         ${Number(r.stars || 3).toFixed(1)} ★
                                     </span>
                                 </div>
-                                <span class="text-[11px] text-neutral-500">${escapeHtml(dateStr)}</span>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <span class="text-[11px] text-neutral-500">${escapeHtml(dateStr)}</span>
+                                    ${reportBtnHtml}
+                                </div>
                             </div>
                             <div class="flex flex-wrap items-center gap-2 text-[11px] text-neutral-600 pt-0.5">
                                 <span>空間 ${rt.space ?? '-'}★</span>・
@@ -691,6 +860,34 @@
             }
 
             modal.classList.remove('hidden');
+        };
+
+        window.openReportCommentByIndex = function(rIdx) {
+            const list = state.currentModalReviews || [];
+            const r = list[rIdx];
+            if (!r) return;
+            const currentUid = getCurrentUserUid();
+            if (currentUid && r.userId && r.userId === currentUid) {
+                showToast('無法檢舉自己的留言喔！', 'error');
+                return;
+            }
+            const isAnon = !r.userId || !r.nickname || r.nickname === '熱心評鑑員' || r.nickname === '匿名' || r.nickname === '匿名公廁探險家';
+            const reviewerName = isAnon ? '匿名公廁探險家' : r.nickname;
+            const evalDocId = r.evalId || r.id || `unknown_${Date.now()}`;
+            window.openReportCommentModal(evalDocId, state.currentModalToiletName || r.name || '', reviewerName, r.comment || '');
+        };
+
+        window.openReportCommentModal = function(evalId, toiletName, authorName, commentText) {
+            state.pendingReportTarget = {
+                evalId: evalId || `unknown_${Date.now()}`,
+                toiletName: toiletName || '',
+                authorName: authorName || '匿名公廁探險家',
+                commentText: commentText || ''
+            };
+            document.getElementById('reportTargetCommentText').textContent = `「${commentText}」`;
+            document.getElementById('reportReasonSelect').selectedIndex = 0;
+            document.getElementById('reportNoteInput').value = '';
+            document.getElementById('reportCommentModal').classList.remove('hidden');
         };
 
         function openDatabase() {
@@ -936,7 +1133,6 @@
         async function autoFetchSameFolderCSV(forceReload = false) {
             const dot = document.getElementById('datasetDot');
             const countText = document.getElementById('datasetCountText');
-            const gpsText = document.getElementById('gpsText');
 
             if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
             if (countText) countText.textContent = '自動匯入同資料夾 CSV 中...';
@@ -958,9 +1154,6 @@
 
                         if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
                         if (countText) countText.innerHTML = `已匯入 <strong>${records.length.toLocaleString()}</strong> 間`;
-                        if (gpsText && state.userLat === null) {
-                            gpsText.textContent = `✅ 已完整匯入 ${records.length.toLocaleString()} 筆公廁資料與雲端即時評價！`;
-                        }
                         refreshDistancesAndRender();
                         if (forceReload) {
                             showToast(`已成功從同資料夾完整匯入 ${records.length.toLocaleString()} 筆公廁資料！`, 'success');
@@ -1054,26 +1247,35 @@
         function updateUserMapLayer() {
             if (state.userLat === null || state.userLng === null || !state.map) return;
             const latLng = [state.userLat, state.userLng];
+            const userIcon = L.divIcon({
+                className: 'poogle-user-gps-icon',
+                html: `
+                    <div class="relative flex items-center justify-center w-8 h-8">
+                        <span class="gps-pulse-ring absolute w-8 h-8 rounded-full bg-[#FF85D0]/65"></span>
+                        <span class="relative w-4 h-4 rounded-full bg-[#18181B] border-2 border-[#FFF57E] shadow-md"></span>
+                    </div>
+                `,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+
             if (!state.userMarker) {
-                const userIcon = L.divIcon({
-                    className: 'poogle-user-gps-icon',
-                    html: `
-                        <div class="relative flex items-center justify-center w-7 h-7">
-                            <span class="gps-pulse-ring absolute w-7 h-7 rounded-full bg-[#FF85D0]"></span>
-                            <span class="relative w-4 h-4 rounded-full bg-[#18181B] border-2 border-[#FFF57E] shadow-md"></span>
-                        </div>
-                    `,
-                    iconSize: [28, 28],
-                    iconAnchor: [14, 14]
-                });
                 state.userMarker = L.marker(latLng, { icon: userIcon, zIndexOffset: 1000 }).addTo(state.map);
+                state.userMarker.bindTooltip('📍 您的目前位置', { direction: 'top', offset: [0, -10] });
             } else {
+                state.userMarker.setIcon(userIcon);
                 state.userMarker.setLatLng(latLng);
             }
-            state.userMarker.bindTooltip('📍 您的目前位置', { direction: 'top', offset: [0, -10] });
 
             if (!state.userCircle100m) {
-                state.userCircle100m = L.circle(latLng, { radius: 100, color: '#18181B', weight: 2, dashArray: '6, 4', fillColor: '#FF85D0', fillOpacity: 0.22 }).addTo(state.map);
+                state.userCircle100m = L.circle(latLng, {
+                    radius: 100,
+                    color: '#18181B',
+                    weight: 2,
+                    dashArray: '6, 4',
+                    fillColor: '#FF85D0',
+                    fillOpacity: 0.22
+                }).addTo(state.map);
             } else {
                 state.userCircle100m.setLatLng(latLng);
             }
@@ -1111,70 +1313,110 @@
                 });
 
                 const marker = L.marker([t.lat, t.lng], { icon });
+                marker.toiletKey = t.key;
                 const distLabel = Number.isFinite(t.distance) ? (t.distance < 1000 ? `${t.distance.toFixed(1)}m` : `${(t.distance / 1000).toFixed(2)}km`) : '';
                 const gmapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.lat + ',' + t.lng)}`;
                 const displayType = t.normalizedType || t.type;
 
                 const ratingSummaryHtml = stats
-                    ? `<div class="p-2 rounded-xl bg-[#FFF57E]/60 border border-[#18181B] text-[11px] space-y-0.5">
-                           <div class="font-extrabold text-black">⭐ 網友平均 ${stats.avgOverall} 星（${stats.count} 則評鑑）</div>
-                           <div class="text-[10px] text-neutral-700">空間 ${stats.avgSpace}・氣味 ${stats.avgSmell}・照明 ${stats.avgLighting}・潔淨 ${stats.avgCleanliness}</div>
+                    ? `<div class="w-full box-border p-2.5 rounded-xl bg-[#FFF57E]/65 border border-[#18181B] text-[11px] space-y-0.5">
+                           <div class="font-extrabold text-black leading-snug">⭐ 網友平均 ${stats.avgOverall} 星（${stats.count} 則評鑑）</div>
+                           <div class="text-[10px] text-neutral-700 leading-snug">空間 ${stats.avgSpace}・氣味 ${stats.avgSmell}・照明 ${stats.avgLighting}・潔淨 ${stats.avgCleanliness}</div>
                        </div>`
                     : `<div class="text-[11px] text-neutral-500">尚無網友評鑑紀錄</div>`;
 
                 marker.bindPopup(`
-                    <div class="w-64 space-y-1.5">
-                        <div class="flex items-center gap-1 flex-wrap">
+                    <div class="w-full max-w-full box-border space-y-2 overflow-hidden">
+                        <div class="flex items-center gap-1 flex-wrap pr-4">
                             <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#72D0FF] border border-[#18181B] text-black">${escapeHtml(displayType)}</span>
                             <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFF57E] border border-[#18181B] text-black">${escapeHtml(t.grade)}</span>
                         </div>
-                        <div class="font-extrabold text-black text-xs">${escapeHtml(t.name)}</div>
-                        <div class="text-[11px] text-neutral-700">${escapeHtml(t.address)}</div>
+                        <div class="font-extrabold text-black text-xs sm:text-sm leading-snug break-words">${escapeHtml(t.name)}</div>
+                        <div class="text-[11px] text-neutral-700 leading-snug break-words">${escapeHtml(t.address)}</div>
                         ${ratingSummaryHtml}
                         ${distLabel ? `<div class="text-[11px] font-bold text-[#18181B]">距離目前位置：${distLabel}</div>` : ''}
-                        <div class="pt-1 flex items-center gap-1.5">
-                            <button onclick="window.openToiletReviewsModal('${t.key}')" class="flex-1 py-1.5 px-2.5 rounded-full bg-[#3CE6B0] border border-[#18181B] text-black font-extrabold text-[11px] text-center hover:bg-[#2fd49f] cursor-pointer">
+                        <div class="pt-1 flex items-center gap-1.5 w-full box-border">
+                            <button onclick="window.openToiletReviewsModal('${t.key}')" class="flex-1 min-w-0 py-1.5 px-2.5 rounded-full bg-[#3CE6B0] border border-[#18181B] text-black font-extrabold text-[11px] text-center hover:bg-[#2fd49f] cursor-pointer truncate">
                                 <i class="fa-solid fa-comments mr-1"></i>查看評論(${stats ? stats.count : 0})
                             </button>
-                            <a href="${gmapUrl}" target="_blank" rel="noopener noreferrer" class="py-1.5 px-2.5 rounded-full bg-[#FFF57E] border border-[#18181B] text-black font-extrabold text-[11px] text-center no-underline hover:bg-[#f7eb5e]">
+                            <a href="${gmapUrl}" target="_blank" rel="noopener noreferrer" class="shrink-0 py-1.5 px-3 rounded-full bg-[#FFF57E] border border-[#18181B] text-black font-extrabold text-[11px] text-center no-underline hover:bg-[#f7eb5e]">
                                 導航
                             </a>
                         </div>
                     </div>
-                `);
+                `, { minWidth: 256, maxWidth: 256 });
                 state.markerLayerGroup.addLayer(marker);
             });
         }
 
-        function setUserPosition(lat, lng, accuracy = 5, panMap = false) {
-            state.userLat = lat; state.userLng = lng; state.userAccuracy = accuracy;
-            const gpsText = document.getElementById('gpsText');
-            if (gpsText) gpsText.innerHTML = `📍 目前定位：(${lat.toFixed(5)}, ${lng.toFixed(5)}) 精度 ±${Math.round(accuracy)}m`;
+        let geoWatchId = null;
+
+        function setUserPosition(lat, lng, panMap = true) {
+            state.userLat = lat;
+            state.userLng = lng;
             updateUserMapLayer();
-            if (panMap && state.map) state.map.setView([lat, lng], 17);
+            if (panMap && state.map) {
+                state.map.setView([lat, lng], 17);
+            }
             refreshDistancesAndRender();
         }
 
-        function triggerUserGeolocation() {
+        function triggerUserGeolocation(isManualClick = false) {
             if (!navigator.geolocation) {
-                showToast('您的瀏覽器不支援自動定位', 'error');
+                showToast('您的瀏覽器不支援 GPS 定位功能', 'error');
                 return;
             }
-            showToast('正在偵測您附近 100m 內的公廁...', 'info');
+            if (isManualClick) {
+                showToast('正在以高精準度 GPS 定位您的目前位置...', 'info');
+            }
+
+            if (geoWatchId !== null) {
+                navigator.geolocation.clearWatch(geoWatchId);
+                geoWatchId = null;
+            }
+
+            let bestAccuracy = Infinity;
+            let hasCenteredOnce = false;
+
+            const handlePosition = (pos) => {
+                const { latitude, longitude, accuracy } = pos.coords;
+                if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+
+                if (!hasCenteredOnce || (Number.isFinite(accuracy) && accuracy <= bestAccuracy)) {
+                    const shouldPan = !hasCenteredOnce || (bestAccuracy - accuracy > 20);
+                    bestAccuracy = Number.isFinite(accuracy) ? accuracy : bestAccuracy;
+                    hasCenteredOnce = true;
+                    setUserPosition(latitude, longitude, shouldPan);
+                }
+            };
+
+            const geoOptions = {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 0
+            };
+
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
-                    setUserPosition(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy, true);
-                    showToast('定位成功！已列出您附近 100m 內的公廁', 'success');
+                    handlePosition(pos);
+                    if (isManualClick) {
+                        showToast('已定位至您的目前位置！', 'success');
+                    }
                 },
                 (err) => {
                     console.warn('Geolocation error:', err);
-                    const gpsText = document.getElementById('gpsText');
-                    if (gpsText && state.allToilets.length > 0) {
-                        gpsText.textContent = '⚠️ 尚未取得定位權限，可點擊上方「全部名冊」或選擇縣市瀏覽公廁';
+                    if (isManualClick) {
+                        showToast('無法取得定位訊號，請確認已開啟瀏覽器位置權限', 'error');
                     }
                     refreshDistancesAndRender();
                 },
-                { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+                geoOptions
+            );
+
+            geoWatchId = navigator.geolocation.watchPosition(
+                handlePosition,
+                () => {},
+                geoOptions
             );
         }
 
@@ -1199,6 +1441,21 @@
 
                 const stats = getToiletReviewStats(t.name);
                 if (state.onlyReviewed && (!stats || stats.count === 0)) continue;
+
+                if (state.starFilter && state.starFilter !== 'all') {
+                    if (state.starFilter === 'unrated') {
+                        if (stats && stats.count > 0) continue;
+                    } else {
+                        if (!stats || stats.count === 0) continue;
+                        const avgScore = Number(stats.avgOverall);
+                        const targetStar = parseInt(state.starFilter, 10);
+                        if (targetStar === 5) {
+                            if (avgScore < 5.0) continue;
+                        } else if (targetStar >= 1 && targetStar <= 4) {
+                            if (Math.floor(avgScore) !== targetStar) continue;
+                        }
+                    }
+                }
 
                 if (q) {
                     const matchName = (t.name || '').toLowerCase().includes(q);
@@ -1367,6 +1624,13 @@
             if (!toilet || !state.map) return;
             state.map.setView([toilet.lat, toilet.lng], 18);
             renderMapMarkersInViewport();
+            if (state.markerLayerGroup) {
+                state.markerLayerGroup.eachLayer((layer) => {
+                    if (layer.toiletKey === toiletKey) {
+                        layer.openPopup();
+                    }
+                });
+            }
         };
 
         window.addEventListener('DOMContentLoaded', async () => {
@@ -1382,28 +1646,52 @@
                 }
             });
 
-            // 1. 先載入快取資料加速呈現
-            const cached = await loadDatasetFromIDB();
-            if (cached && cached.records && cached.records.length > 0) {
-                state.allToilets = cached.records;
-                buildIndexesAndDropdowns(state.allToilets);
-                document.getElementById('datasetDot').className = 'w-2 h-2 rounded-full bg-emerald-500';
-                document.getElementById('datasetCountText').innerHTML = `已載入 <strong>${state.allToilets.length.toLocaleString()}</strong> 間`;
-                document.getElementById('gpsText').textContent = `✅ 已完整載入 ${state.allToilets.length.toLocaleString()} 筆公廁資料！點擊「評論」即可查看各公廁環境現況與留言`;
-                refreshDistancesAndRender();
-            }
+            // 檢舉留言彈窗事件綁定（送交 Firebase comment_reports 集合供人工審核）
+            const reportModal = document.getElementById('reportCommentModal');
+            const closeReportModal = () => {
+                state.pendingReportTarget = null;
+                reportModal.classList.add('hidden');
+            };
+            document.getElementById('closeReportModalBtn').addEventListener('click', closeReportModal);
+            document.getElementById('cancelReportBtn').addEventListener('click', closeReportModal);
+            reportModal.addEventListener('click', (e) => {
+                if (e.target === reportModal) closeReportModal();
+            });
 
-            // 2. 自動從同資料夾讀取 ./全國公廁建檔資料.csv
-            const autoLoaded = await autoFetchSameFolderCSV(false);
-            if (!autoLoaded && (!cached || !cached.records || cached.records.length === 0)) {
-                document.getElementById('datasetDot').className = 'w-2 h-2 rounded-full bg-rose-500';
-                document.getElementById('datasetCountText').textContent = '等待匯入 CSV';
-                renderToiletList();
-            }
+            document.getElementById('submitReportBtn').addEventListener('click', async () => {
+                if (!state.pendingReportTarget) return;
+                const submitBtn = document.getElementById('submitReportBtn');
+                const reason = document.getElementById('reportReasonSelect').value;
+                const note = document.getElementById('reportNoteInput').value.trim();
 
-            // 進入頁面預設自動啟動定位以顯示附近 100m 內的公廁
-            triggerUserGeolocation();
+                submitBtn.disabled = true;
+                submitBtn.textContent = '送出中...';
+                try {
+                    if (db) {
+                        await db.collection('comment_reports').add({
+                            evalId: state.pendingReportTarget.evalId,
+                            toiletName: state.pendingReportTarget.toiletName,
+                            reportedAuthor: state.pendingReportTarget.authorName,
+                            reportedComment: state.pendingReportTarget.commentText,
+                            reason,
+                            note,
+                            status: 'pending', // 待管理員於後台人工審核
+                            reportedAt: new Date().toISOString(),
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                    closeReportModal();
+                    showToast('已收到您的檢舉！我們將進行人工審核處理。', 'success');
+                } catch (err) {
+                    console.warn('Report comment error:', err);
+                    showToast('檢舉送出失敗，請稍後再試', 'error');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '送出檢舉';
+                }
+            });
 
+            // 綁定所有按鈕與篩選器事件
             document.getElementById('reloadSameFolderCsvBtn').addEventListener('click', async () => {
                 const ok = await autoFetchSameFolderCSV(true);
                 if (!ok) {
@@ -1450,6 +1738,10 @@
                 state.ratingSort = e.target.value;
                 refreshDistancesAndRender();
             });
+            document.getElementById('starFilterSelect').addEventListener('change', (e) => {
+                state.starFilter = e.target.value;
+                refreshDistancesAndRender();
+            });
 
             document.getElementById('searchInput').addEventListener('input', (e) => {
                 state.searchQuery = e.target.value;
@@ -1463,7 +1755,7 @@
                 refreshDistancesAndRender();
             });
 
-            document.getElementById('locateMeBtn').addEventListener('click', triggerUserGeolocation);
+            document.getElementById('locateMeBtn').addEventListener('click', () => triggerUserGeolocation(true));
             document.getElementById('onlyReviewedToggle').addEventListener('change', (e) => {
                 state.onlyReviewed = e.target.checked;
                 refreshDistancesAndRender();
@@ -1479,6 +1771,27 @@
                     refreshDistancesAndRender();
                 });
             });
+
+            // 1. 先載入快取資料加速呈現
+            const cached = await loadDatasetFromIDB();
+            if (cached && cached.records && cached.records.length > 0) {
+                state.allToilets = cached.records;
+                buildIndexesAndDropdowns(state.allToilets);
+                document.getElementById('datasetDot').className = 'w-2 h-2 rounded-full bg-emerald-500';
+                document.getElementById('datasetCountText').innerHTML = `已載入 <strong>${state.allToilets.length.toLocaleString()}</strong> 間`;
+                refreshDistancesAndRender();
+            }
+
+            // 2. 啟動高精準度即時定位（不使用舊快取與低精準度 IP 定位）
+            triggerUserGeolocation(false);
+
+            // 3. 自動從同資料夾讀取 ./全國公廁建檔資料.csv
+            const autoLoaded = await autoFetchSameFolderCSV(false);
+            if (!autoLoaded && (!cached || !cached.records || cached.records.length === 0)) {
+                document.getElementById('datasetDot').className = 'w-2 h-2 rounded-full bg-rose-500';
+                document.getElementById('datasetCountText').textContent = '等待匯入 CSV';
+                renderToiletList();
+            }
         });
     </script>
 </body>
